@@ -10,18 +10,21 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-# Constants
-TIMEOUT: int = 900
+with open('config.yml', 'r') as file:
+    config = yaml.safe_load(file)
 
-BASE_DIR = '/nfs/home/omutlu'
-#BASE_DIR = '/home/oguz/Desktop/hiwi_code'
-BENCHMARK_DIR = BASE_DIR + '/benchmark/sv-benchmarks/'
-CBMC_WRAPPER = BASE_DIR + '/cbmc/cbmc-wrapper'
-MALLOB_WRAPPER = BASE_DIR + '/cbmc_mallob_monolithic/mallob/mallob-wrapper'
-FILESYSTEM_WRAPPER = BASE_DIR + '/cbmc_mallob_filesystem/cbmc/cbmc-wrapper'
-RESULTS_DIR = BASE_DIR + '/cbmc_mallob_monolithic/mallob/mem-overflow-between10-30-timeout=900/'
-MALLOB_DIR = BASE_DIR + '/mallob/'
-TOOLS = {"CBMC": CBMC_WRAPPER, "MALLOB": MALLOB_WRAPPER, "MALLOB-FILESYSTEM": FILESYSTEM_WRAPPER}
+
+TIMEOUT = config['TIMEOUT']
+BASE_DIR = config['BASE_DIR']
+BENCHMARK_DIR = config['BENCHMARK_DIR']
+CBMC_WRAPPER = config['CBMC_WRAPPER']
+FILESYSTEM_CBMC_WRAPPER = CBMC_WRAPPER
+MALLOB_CBMC_WRAPPER = config['MALLOB_CBMC_WRAPPER']
+RESULTS_DIR = config['RESULTS_DIR']
+MALLOB_DIR = config['MALLOB_DIR']
+
+TOOLS = {"CBMC": CBMC_WRAPPER, "MALLOB": MALLOB_CBMC_WRAPPER, "MALLOB-FILESYSTEM": FILESYSTEM_CBMC_WRAPPER}
+
 
 @dataclass
 class BenchmarkResult:

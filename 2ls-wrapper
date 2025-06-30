@@ -1,48 +1,82 @@
 #!/bin/bash
 # tool
 
-TOOL_BINARY=./src/cbmc/cbmc
-TOOL_NAME=CBMC
+TOOL_BINARY=../2ls_cadical/2ls/src/2ls/2ls
+GOTO_CC=../2ls_cadical/2ls/lib/cbmc/src/goto-cc/goto-cc
+GOTO_INSTRUMENT=../2ls_cadical/2ls/lib/cbmc/src/goto-instrument/goto-instrument
+TOOL_NAME=2LS
 FIND_OPTIONS=""
 
 # function to run the tool
 
 run()
 {
-  if [ "$PROP" = "termination" ] ; then
-    PROPERTY="$PROPERTY --no-assertions --no-self-loops-to-assumptions"
-  fi
-
   gmon_suffix=$GMON_OUT_PREFIX
   export GMON_OUT_PREFIX="goto-cc_$gmon_suffix"
-  ./src/goto-cc/goto-cc --verbosity 9 -m$BIT_WIDTH --function $ENTRY "${BM[@]}" -o $LOG.bin
+  $GOTO_CC -m$BIT_WIDTH --function $ENTRY "${BM[@]}" -o $LOG.bin
   if [ -n "$FAIL_FUNCTION" ]; then
-    ./src/goto-instrument/goto-instrument $LOG.bin $LOG.bin --remove-function-body "$FAIL_FUNCTION" \
-                                        --verbosity 9 --generate-function-body "$FAIL_FUNCTION" \
+    $GOTO_INSTRUMENT $LOG.bin $LOG.bin --remove-function-body "$FAIL_FUNCTION" \
+                                        --generate-function-body "$FAIL_FUNCTION" \
                                         --generate-function-body-options assert-false
   fi
 
-  export GMON_OUT_PREFIX="cbmc_$gmon_suffix"
-timeout 875 bash -c ' \
-\
-ulimit -v 64000000 ; \
-\
-EC=42 ; \
-echo "./src/cbmc/cbmc --incremental-loop main.0 --unwind-max 100 --no-standard-checks --verbosity 9 --slice-formula --stop-on-fail --object-bits $OBJ_BITS $PROPERTY"; \
-./src/cbmc/cbmc --incremental-loop main.0 --unwind-max 100 --no-standard-checks --verbosity 9 --slice-formula  --stop-on-fail --object-bits $OBJ_BITS $PROPERTY $LOG.bin >> $LOG.latest 2>&1 ; \
-ec=$? ; \
-\
-case $ec in \
-0) EC=0 ; cat $LOG.latest >> $LOG.ok ; echo "EC=$EC" >> $LOG.ok ;; \
-10) EC=10 ; cat $LOG.latest >> $LOG.ok ; echo "EC=$EC" >> $LOG.ok ;; \
-42) EC=42 ; cat $LOG.latest >> $LOG.ok ; rm -f $LOG.latest ; echo "EC=$EC" >> $LOG.ok ;; \
-*) if [ $EC -ne 0 ] ; then EC=$ec ; cat $LOG.latest >>$LOG.ok ; fi ; echo "EC=$EC" >> $LOG.ok ;; \
-esac ; \
-'
-  if [ ! -s $LOG.ok ] ; then
-    mv $LOG.latest $LOG.ok ; echo "EC=42" >> $LOG.ok
+  export GMON_OUT_PREFIX="2ls_$gmon_suffix"
+  # add property-specific options
+  if [[ "$PROP" == "termination" ]]; then
+    PROPERTY1="$PROPERTY --termination --competition-mode"
+    PROPERTY2="$PROPERTY --nontermination --competition-mode"
+
+    # run the termination and nontermination analysis in parallel
+    $TOOL_BINARY --graphml-witness $LOG.witness --object-bits $OBJ_BITS $PROPERTY1 \
+      $LOG.bin >> $LOG.ok1 2>&1 &
+    PID1="$!"
+    $TOOL_BINARY --graphml-witness $LOG.witness --object-bits $OBJ_BITS $PROPERTY2 \
+      $LOG.bin >> $LOG.ok2 2>&1 &
+    PID2="$!"
+    # this might not work in all environments
+    wait -n &> /dev/null
+
+    # store the exit code of the first process that is finished
+    EC=$?
+
+    # find out which one has finished
+    for pid in $PID1 $PID2
+    do
+      if ! ps -p $pid &> /dev/null; then
+        EXITED=$pid
+        break
+      fi
+    done
+
+    # if the result of the first exiting analysis is inconclusive
+    # then wait for the other analysis to finish
+    if [ $EC -eq 5 ]; then
+      wait -n &> /dev/null
+      EC=$?
+      if [[ "$EXITED" == "$PID1" ]]; then
+        mv $LOG.ok2 $LOG.ok
+      else
+        mv $LOG.ok1 $LOG.ok
+      fi
+    else # we have a conclusive result, kill the other process
+      if [[ "$EXITED" == "$PID1" ]]; then
+        kill -9 $PID2 &> /dev/null
+        mv $LOG.ok1 $LOG.ok
+      else
+        kill -9 $PID1  &> /dev/null
+        mv $LOG.ok2 $LOG.ok
+      fi
+    fi
+  else
+    PROPERTY="$PROPERTY --heap --arrays --values-refine --k-induction --competition-mode"
+
+    # run the tool
+    $TOOL_BINARY --graphml-witness $LOG.witness --object-bits $OBJ_BITS $PROPERTY \
+      $LOG.bin >> $LOG.ok 2>&1
+
+    # store the exit code
+    EC=$?
   fi
-  eval `tail -n 1 $LOG.ok`
 }
 
 # main tool wrapper script

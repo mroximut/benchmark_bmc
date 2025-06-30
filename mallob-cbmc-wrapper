@@ -1,11 +1,11 @@
 #!/bin/bash
 # tool
 
-TOOL_BINARY=./lib/cbmc/src/cbmc/cbmc
-TOOL_NAME=CBMC_MALLOB
+TOOL_BINARY=../cbmc_mallob_monolithic/mallob/build_cbmc/mallob
+GOTO_CC=../cbmc_mallob_monolithic/mallob/lib/cbmc/src/goto-cc/goto-cc
+GOTO_INSTRUMENT=../cbmc_mallob_monolithic/mallob/lib/cbmc/src/goto-instrument/goto-instrument
+TOOL_NAME=MALLOB_CBMC
 FIND_OPTIONS=""
-SAVE_LOGFILE=false
-SAVE_DIRECTORY=./logs
 
 # function to run the tool
 
@@ -17,9 +17,9 @@ run()
 
   gmon_suffix=$GMON_OUT_PREFIX
   export GMON_OUT_PREFIX="goto-cc_$gmon_suffix"
-  ./lib/cbmc/src/goto-cc/goto-cc --verbosity 9 -m$BIT_WIDTH --function $ENTRY "${BM[@]}" -o $LOG.bin
+  $GOTO_CC --verbosity 9 -m$BIT_WIDTH --function $ENTRY "${BM[@]}" -o $LOG.bin
   if [ -n "$FAIL_FUNCTION" ]; then
-    ./lib/cbmc/src/goto-instrument/goto-instrument $LOG.bin $LOG.bin --remove-function-body "$FAIL_FUNCTION" \
+    $GOTO_INSTRUMENT $LOG.bin $LOG.bin --remove-function-body "$FAIL_FUNCTION" \
                                         --verbosity 9 --generate-function-body "$FAIL_FUNCTION" \
                                         --generate-function-body-options assert-false
   fi
@@ -38,11 +38,11 @@ ulimit -v 64000000 ; \
 \
 echo "Running mallob" >> $LOG.latest ; \
 ec=42 ; \
-./build/mallob -t=16 -mono-app=CBMC -mono=$LOG.bin -v=4 -compress-models -unwind-loops -s2f=$LOG.latest -cbmc-opts=--no-standard-checks,--verbosity,9,--slice-formula,--stop-on-fail,--object-bits,$OBJ_BITS,$PROPERTY ; \
+$TOOL_BINARY -t=16 -mono-app=cbmc -mono=$LOG.bin -v=4 -compress-models -unwind-loops -s2f=$LOG.latest -cbmc-opts=--no-standard-checks,--verbosity,9,--slice-formula,--stop-on-fail,--object-bits,$OBJ_BITS,$PROPERTY ; \
 if grep -q "EC=" $LOG.latest; then ec=$(grep -o "EC=[0-9]*" $LOG.latest | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]'); else ec=1; fi ; \
 #echo "Exit code: $ec" ; \
 mv $LOG.latest $LOG.ok ; \
-#echo "EC=$ec" >> $LOG.ok ; \
+echo "EC=$ec" >> $LOG.ok ; \
 '
   if [ ! -s $LOG.ok ] ; then
     mv $LOG.latest $LOG.ok ; echo "EC=42" >> $LOG.ok

@@ -1,0 +1,4 @@
+.venv/
+other_wrappers/
+svcomp-wrapper/
+test_programs/
