@@ -2,3 +2,7 @@
 other_wrappers/
 svcomp-wrapper/
 test_programs/
+logs/
+results/
+test/
+__pycache__/

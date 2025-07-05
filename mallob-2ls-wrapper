@@ -26,51 +26,17 @@ run()
 
   # add property-specific options
   if [[ "$PROP" == "termination" ]]; then
-    echo "Not supported yet"
-    # PROPERTY1="$PROPERTY --termination --competition-mode"
-    # PROPERTY2="$PROPERTY --nontermination --competition-mode"
+    PROPERTY="$PROPERTY --competition-mode"
 
-    # # run the termination and nontermination analysis in parallel
-    # $TOOL_BINARY --graphml-witness $LOG.witness --object-bits $OBJ_BITS $PROPERTY1 \
-    #   $LOG.bin >> $LOG.ok1 2>&1 &
-    # PID1="$!"
-    # $TOOL_BINARY --graphml-witness $LOG.witness --object-bits $OBJ_BITS $PROPERTY2 \
-    #   $LOG.bin >> $LOG.ok2 2>&1 &
-    # PID2="$!"
-    # # this might not work in all environments
-    # wait -n &> /dev/null
+    # Replace spaces with commas in PROPERTY for mallob
+    echo "PROPERTY: $PROPERTY"
+    PROPERTY=$(echo "$PROPERTY" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    PROPERTY=$(echo "$PROPERTY" | sed "s/ /,/g")
+    echo "PROPERTY: $PROPERTY"
 
-    # # store the exit code of the first process that is finished
-    # EC=$?
-
-    # # find out which one has finished
-    # for pid in $PID1 $PID2
-    # do
-    #   if ! ps -p $pid &> /dev/null; then
-    #     EXITED=$pid
-    #     break
-    #   fi
-    # done
-
-    # # if the result of the first exiting analysis is inconclusive
-    # # then wait for the other analysis to finish
-    # if [ $EC -eq 5 ]; then
-    #   wait -n &> /dev/null
-    #   EC=$?
-    #   if [[ "$EXITED" == "$PID1" ]]; then
-    #     mv $LOG.ok2 $LOG.ok
-    #   else
-    #     mv $LOG.ok1 $LOG.ok
-    #   fi
-    # else # we have a conclusive result, kill the other process
-    #   if [[ "$EXITED" == "$PID1" ]]; then
-    #     kill -9 $PID2 &> /dev/null
-    #     mv $LOG.ok1 $LOG.ok
-    #   else
-    #     kill -9 $PID1  &> /dev/null
-    #     mv $LOG.ok2 $LOG.ok
-    #   fi
-    # fi
+    cd $MALLOB
+    # run the tool
+    RDMAV_FORK_SAFE=1; mpirun -np 2 --bind-to core -map-by ppr:2:node:pe=4 $TOOL_BINARY -t=4 -c=2 -termination-analysis -mono-app=2ls -mono=$LOG.bin -v=4 -compress-models -s2f=$LOG.ok -2ls-opts=--graphml-witness,$LOG.witness,--object-bits,$OBJ_BITS,$PROPERTY ;\
   else
     PROPERTY="$PROPERTY --heap --arrays --values-refine --k-induction --competition-mode"
 
@@ -83,12 +49,13 @@ run()
     cd $MALLOB
     # run the tool
     $TOOL_BINARY -t=16 -mono-app=2ls -mono=$LOG.bin -v=4 -compress-models -s2f=$LOG.ok -2ls-opts=--graphml-witness,$LOG.witness,--object-bits,$OBJ_BITS,$PROPERTY ;\
-    if grep -q "s EC=" $LOG.ok; then EC=$(grep -o "s EC=[0-9]*" $LOG.ok | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]'); else EC=5; fi ; \
-    echo $EC
-    echo "t COMPILE_TIME: $duration" >> $LOG.ok
-
-    cd $BACK
   fi
+
+  if grep -q "s FINAL EC=" $LOG.ok; then EC=$(grep -o "s FINAL EC=[0-9]*" $LOG.ok | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]'); else EC=5; fi ; \
+  echo $EC
+  echo "t COMPILE_TIME: $duration" >> $LOG.ok
+
+  cd $BACK
 }
 
 # main tool wrapper script

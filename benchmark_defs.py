@@ -4,22 +4,30 @@ import glob
 from dataclasses import dataclass
 import yaml
 from typing import Dict, Any, List, Optional, Union 
+import pandas as pd
 
 with open('config.yml', 'r') as file:
     config = yaml.safe_load(file)
 
+
+@dataclass
+class SingleBenchmarkTask:
+    task_name: str
+    input_file: str
+    data_model: int
+    property_file: str
+    expected: bool
+
 @dataclass
 class SingleBenchmarkResult:
-    input_file: str
-    property_file: str
-    expected: str
-    data_model: int
-    exit_code: str
+    task: SingleBenchmarkTask
+    exit_code: int
     last_line: str
     compile_time: float
     sat_time: float
     processing_time: float
     total_runtime: float
+    sat_calls: int
 
 @dataclass
 class BenchmarkSet:
@@ -28,14 +36,14 @@ class BenchmarkSet:
     property_file: str
 
 @dataclass
-class SingleBenchmarkTask:
+class BenchmarkTask:
     input_file: str
     data_model: int
     property_files: Dict[str, str] = None
     task_name: str = None
 
 
-def parse_yml_file(yml_file: str, single_property: str = None) -> SingleBenchmarkTask:
+def parse_yml_file(yml_file: str, single_property: str = None) -> BenchmarkTask:
 
     base_dir = os.path.dirname(yml_file)
     base_dir_prop = os.path.dirname(base_dir)
@@ -43,10 +51,12 @@ def parse_yml_file(yml_file: str, single_property: str = None) -> SingleBenchmar
     with open(yml_file, 'r') as file:
         data = yaml.safe_load(file)
 
-    task = SingleBenchmarkTask(input_file='', data_model=32, property_files={})
+    task = BenchmarkTask(input_file='', data_model=32, property_files={})
 
     if 'input_files' in data:
-        task.input_file = os.path.join(base_dir, data['input_files'])
+        input_file = os.path.join(base_dir, data['input_files'])
+        clean_input_file = input_file.split('sv-benchmarks')[-1][1:] if 'sv-benchmarks' in input_file else input_file
+        task.input_file = clean_input_file
 
     if 'options' in data and 'data_model' in data['options']:
         data_model = data['options']['data_model']
@@ -64,17 +74,18 @@ def parse_yml_file(yml_file: str, single_property: str = None) -> SingleBenchmar
                 if single_property and property_relative_path != single_property[2:]: # Remove the leading 'c/'
                     #print(f"{prop['property_file']} vs {single_property}.")
                     continue
-                property_files[os.path.join(base_dir_prop, property_relative_path)] = prop['expected_verdict']
-
+                property_file = os.path.join(base_dir_prop, property_relative_path)
+                clean_property_file = property_file.split('sv-benchmarks')[-1][1:] if 'sv-benchmarks' in property_file else property_file
+                property_files[clean_property_file] = prop['expected_verdict']
         if property_files:
             task.property_files = property_files
 
     return task
 
-def parse_benchmark_set(benchmark_set: BenchmarkSet, single_property: bool = True) -> List[SingleBenchmarkTask]:
+def parse_benchmark_set(benchmark_set: BenchmarkSet, single_property: bool = True) -> List[BenchmarkTask]:
 
     set_file = config['BASE_DIR'] + "/benchmark/sv-benchmarks/" + benchmark_set.set_file
-    tasks: List[SingleBenchmarkTask] = []
+    tasks: List[BenchmarkTask] = []
     base_dir = os.path.dirname(set_file)
 
     if not os.path.exists(set_file):
@@ -130,12 +141,28 @@ def extract_benchmark_set(benchmark_xml_path: str) -> List[BenchmarkSet]:
     return sets
 
 if __name__ == "__main__":
-    benchmark_sets = (extract_benchmark_set(BASE_DIR + '/benchmark/benchmark-defs/cbmc.xml'))
+    benchmark_sets = (extract_benchmark_set(config['BASE_DIR']+ '/benchmark/benchmark-defs/cbmc.xml'))
+
     #print("Benchmark Sets:")
     #for benchmark_set in benchmark_sets:
     #    print(f"Task Name: {benchmark_set.task_name}, Set File: {benchmark_set.set_file}, Property File: {benchmark_set.property_file}")
-    for benchmark_set in benchmark_sets[:1]:
+    rows = []
+    for benchmark_set in benchmark_sets:
         tasks = parse_benchmark_set(benchmark_set, single_property=True)
         print(f"Tasks for {benchmark_set.task_name}:")
         for task in tasks:
-            print(f"Input File: {task.input_file}\n Data Model: {task.data_model}\n Property Files: {task.property_files}\n Task Name: {task.task_name}\n")
+            if list(task.property_files.keys()):
+                rows.append([
+                    task.task_name,
+                    task.input_file,
+                    task.data_model,
+                    list(task.property_files.keys())[0],
+                    list(task.property_files.values())[0]
+                ])
+            else:
+                print(f"No property files found for task: {task.property_files}")
+    df = pd.DataFrame(rows, columns=['task_name', 'input_file', 'data_model', 'property_file', 'expected'])
+    df.to_csv('benchmark_tasks2.csv', index=False)
+        #print(df)
+
+           # print(f"Input File: {task.input_file}\n Data Model: {task.data_model}\n Property Files: {task.property_files}\n Task Name: {task.task_name}\n")

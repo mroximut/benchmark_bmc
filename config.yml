@@ -3,17 +3,3 @@ TIMEOUT: 900
 
 #BASE_DIR: "/nfs/home/omutlu"
 BASE_DIR: "/home/oguz/Desktop/hiwi_code"
-
-
-BENCHMARK_BMC: "${BASE_DIR}/benchmark_bmc/"
-
-BENCHMARK_DIR: "${BASE_DIR}/benchmark/sv-benchmarks/"
-CBMC_WRAPPER: "${BASE_DIR}/benchmark_bmc/cbmc-wrapper"
-MALLOB_CBMC_WRAPPER: "${BASE_DIR}/benchmark_bmc/mallob-cbmc-wrapper"
-2LS_WRAPPER: "${BASE_DIR}/benchmark_bmc/2ls-wrapper"
-MALLOB_2LS_WRAPPER: "${BASE_DIR}/benchmark_bmc/mallob-2ls-wrapper"
-
-RESULTS_DIR: "${BASE_DIR}/benchmark_bmc/results/"
-MALLOB_DIR: "${BASE_DIR}/mallob/"
-
-incremental: false
