@@ -1,0 +1,17 @@
+#!/bin/bash
+spack env activate myenv
+mkdir -p 2ls_cadical
+cd 2ls_cadical 
+git clone git@github.com:mroximut/2ls.git --branch ipasir
+bash ./build.sh
+cd ..
+mkdir -p mallob_bmc
+cd mallob_bmc
+git clone git@github.com:mroximut/mallob.git --branch 2ls_new_stream
+cd mallob
+cd lib && bash fetch_and_build_solvers.sh kcly
+cd ..
+export SERVER="1"
+bash ./build_satonly.sh
+export MALLOB_PATH="/nfs/home/omutlu/omutlu/mallob_bmc/mallob"
+bash ./build_with_2ls.sh
