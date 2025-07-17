@@ -3,6 +3,9 @@ import time
 from benchmark_defs import *
 from enum import Enum
 import random 
+import sys
+import os
+import matplotlib.pyplot as plt
 
 class SolverType(Enum):
     CBMC = "cbmc"
@@ -22,7 +25,15 @@ class Solver:
         self.sv_benchmarks_dir = sv_benchmarks_dir
         self.result = None
 
-    def run(self, task: SingleBenchmarkTask, timeout: float = config['TIMEOUT'], log: bool = True) -> SingleBenchmarkResult:
+    def run(self, task: SingleBenchmarkTask, timeout: float = config['TIMEOUT'], log: bool = True, check_csv: bool = False) -> SingleBenchmarkResult:
+        
+        if check_csv:
+            csv_file = os.path.join(self.save_dir, "results", f"{self.type.value}_results.csv")
+            result = self.get_result_from_csv(csv_file, task)
+            if result:
+                print(f"Result found in CSV for task {task.task_name}: {result.exit_code}, in {result.processing_time}s from which {result.sat_time}s SAT.")
+                return result
+        
         result = SingleBenchmarkResult(
             task=task,
             exit_code=None,
@@ -84,9 +95,17 @@ class Solver:
                         result.exit_code = int(line.split('=')[-1].strip())
                     elif 't FINAL SAT_CALLS' in line:
                         result.sat_calls = int(line.split(':')[-1].strip())
+
+            else:
+                print("No output from the solver.")
+                if not result.exit_code:
+                    result.exit_code = -3
+                if not result.last_line:
+                    result.last_line = "No output from the solver."
+            
             self.result = result
                 
-            if res and log:
+            if log and res and res.stdout:
                 self.save_log(res.stdout, self.save_dir)
 
             self.cleanup()
@@ -143,7 +162,32 @@ class Solver:
         if os.path.exists(save_path):
             df.to_csv(save_path, mode='a', header=False, index=False)
         else:
-            df.to_csv(save_path, index=False)        
+            df.to_csv(save_path, index=False)   
+
+    def get_result_from_csv(self, csv_file: str, single_task: SingleBenchmarkTask) -> SingleBenchmarkResult:
+        df = pd.read_csv(csv_file)
+        task_df = df[(df['task_name'] == single_task.task_name) & 
+                     (df['input_file'] == single_task.input_file) & 
+                     (df['data_model'] == single_task.data_model) & 
+                     (df['property_file'] == single_task.property_file)]
+        
+        if task_df.empty:
+            print(f"No result found for task {single_task.task_name} in {csv_file}.")
+            return None
+        
+        row = task_df.iloc[0]
+        result = SingleBenchmarkResult(
+            task=single_task,
+            exit_code=row['exit_code'],
+            compile_time=row['compile_time'],
+            sat_time=row['sat_time'],
+            processing_time=row['processing_time'],
+            total_runtime=row['total_runtime'],
+            sat_calls=row['sat_calls'],
+            last_line=row['last_line']
+        )
+        return result
+
 
 
 class BenchmarkRunner:
@@ -153,8 +197,19 @@ class BenchmarkRunner:
         self.save_directory = save_directory
         os.makedirs(self.save_directory, exist_ok=True)
         self.seed = None
+        self.category = []
     
-    def run(self, timeout: int, log: bool):
+    def run(self, timeout: int, log: bool, dry_run: bool = False):
+        with open(os.path.join(self.save_directory, "info.txt"), 'a') as f:
+            f.write(f"Seed: {self.seed}\n")
+            f.write(f"Timeout: {timeout} seconds\n")
+            f.write(f"Tasks: {len(self.tasks)}\n")
+            f.write(f"Solvers: {[solver.type.value for solver in self.solvers]}\n")
+            f.write(f"Categories: {self.category}\n")
+        
+        if dry_run:
+            return
+
         for task in self.tasks:
             for solver in self.solvers:
                 print(f"Running {solver.type.value} on task {task.task_name}...")
@@ -162,13 +217,23 @@ class BenchmarkRunner:
                 print(f"Result for {task.task_name} with {solver.type.value}: {result.exit_code}, in {result.processing_time}s from which {result.sat_time}s SAT.")
                 solver.save_to_csv()
 
-    def set_tasks_randomly(self, no_tasks: int, all_tasks_csv: str = "benchmark_tasks.csv", seed: int = 42):
+    def set_tasks_randomly(self, no_tasks: int, all_tasks_csv: str = "benchmark_tasks.csv", seed: int = 42, category: List[str] = [], exclude: List[str] = []):
         self.seed = seed
+        self.category = category 
         df = pd.read_csv(all_tasks_csv)
         random.seed(seed)
+
+        if category:
+            df = df[df['task_name'].apply(lambda x: any(x.lower().startswith(cat.lower()) for cat in category))]
+
+        no_tasks = min(no_tasks, len(df))
         selected_rows = df.sample(n=no_tasks, random_state=seed)
+
+        if exclude:
+            selected_rows = selected_rows[~selected_rows['input_file'].isin(exclude)]
+            no_tasks = min(no_tasks, len(selected_rows))
         
-        self.tasks = [
+        self.tasks.extend([
             SingleBenchmarkTask(
                 task_name=row['task_name'],
                 input_file=row['input_file'],
@@ -176,7 +241,7 @@ class BenchmarkRunner:
                 property_file=row['property_file'],
                 expected=row['expected']
             ) for _, row in selected_rows.iterrows()
-        ]
+        ])
         print(f"Selected {len(self.tasks)} tasks randomly from {all_tasks_csv}.")
 
     def save_tasks_to_csv(self, save_file: str = "tasks.csv"):
@@ -192,8 +257,13 @@ class BenchmarkRunner:
             'expected': task.expected,
         } for task in self.tasks])
         
-        df.to_csv(os.path.join(self.save_directory, save_file), index=False)
-        print(f"Saved {len(self.tasks)} with seed {self.seed if self.seed else ""} tasks to {save_file}.")
+        csv_path = os.path.join(self.save_directory, save_file)
+        file_exists = os.path.exists(csv_path)
+        df.to_csv(csv_path, mode='a', header=not file_exists, index=False)
+        
+        seed_tmp = self.seed if self.seed else ""
+        print(f"Saved {len(self.tasks)} with seed {seed_tmp} tasks to {save_file}.")
+
 
     def load_tasks_from_csv(self, csv_file: str):
         df = pd.read_csv(csv_file)
@@ -208,20 +278,47 @@ class BenchmarkRunner:
         ]
         print(f"Loaded {len(self.tasks)} tasks from {csv_file}.")
 
+
+def str_to_task(task_str: str) -> SingleBenchmarkTask:
+    parts = task_str.split(',')
+    if len(parts) != 5:
+        raise ValueError(f"Invalid task string format: {task_str}")
+    
+    return SingleBenchmarkTask(
+        task_name=parts[0].strip(),
+        input_file=parts[1].strip(),
+        data_model=int(parts[2].strip()),
+        property_file=parts[3].strip(),
+        expected=parts[4].strip().lower() == 'true'
+    )
+
 if __name__ == "__main__":
     # task = SingleBenchmarkTask(
     #     task_name="test",
-    #     input_file="./test_programs/dijkstra-u_unwindbound50.c",
+    #     input_file="test_programs/elevator_spec14_product03.cil.c",
+    #     #input_file="test_programs/dijkstra-u_unwindbound50.c",
     #     data_model=32,
-    #     property_file="./test_programs/valid-memsafety.prp",
+    #     #property_file="test_programs/valid-memsafety.prp",
+    #     property_file="test_programs/termination.prp",
     #     expected=True
     # )
-    # solver = Solver(SolverType.TWOLS)
+    # solver = Solver(SolverType.TWOLS, sv_benchmarks_dir="./")
     # solver.run(task, timeout=60, log=True)
     # solver.save_to_csv()
+    #task = str_to_task("Termination-MainControlFlow,c/termination-restricted-15/WhilePart.c,64,c/properties/termination.prp,False")
+    #print(Solver(SolverType.MALLOB_2LS).run(task, timeout=60, log=True))
     
-    runner = BenchmarkRunner([], [SolverType.TWOLS, SolverType.MALLOB_2LS], save_directory='./test')
-    runner.set_tasks_randomly(no_tasks=2, all_tasks_csv='benchmark_tasks.csv', seed=123)
-    #runner.save_tasks_to_csv()
+    runner = BenchmarkRunner([], [SolverType.TWOLS, SolverType.MALLOB_2LS], save_directory='./test_all200')
     
-    runner.run(timeout=10, log=True)
+    df_exclude = pd.read_csv('./test_termination_reachsafety_others505050/tasks.csv')
+    exclude = df_exclude['input_file'].tolist()
+    
+    #runner.set_tasks_randomly(no_tasks=50, all_tasks_csv='benchmark_tasks.csv', seed=42424242, category=['MemSafety'])
+    #runner.set_tasks_randomly(no_tasks=50, all_tasks_csv='benchmark_tasks.csv', seed=42424242, category=['NoOverflows'])
+    #runner.set_tasks_randomly(no_tasks=50, all_tasks_csv='benchmark_tasks.csv', seed=42424242, category=['SoftwareSystems'])
+
+    runner.set_tasks_randomly(no_tasks=200, all_tasks_csv='benchmark_tasks.csv', seed=123456, exclude=exclude)
+    
+    runner.save_tasks_to_csv()
+    
+    runner.run(timeout=900, log=True, dry_run=False)
