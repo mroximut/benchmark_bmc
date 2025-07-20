@@ -1,5 +1,5 @@
 # Constants
 TIMEOUT: 900
 
-#BASE_DIR: "/nfs/home/omutlu"
-BASE_DIR: "/home/oguz/Desktop/hiwi_code"
+BASE_DIR: "/nfs/home/omutlu/omutlu"
+#BASE_DIR: "/home/oguz/Desktop/hiwi_code"

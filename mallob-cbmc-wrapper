@@ -20,6 +20,10 @@ run()
   gmon_suffix=$GMON_OUT_PREFIX
   export GMON_OUT_PREFIX="goto-cc_$gmon_suffix"
   $GOTO_CC -m$BIT_WIDTH --function $ENTRY "${BM[@]}" -o $LOG.bin
+  if [ $? -ne 0 ]; then
+  echo "goto-cc failed, aborting."
+  exit 1
+  fi
   if [ -n "$FAIL_FUNCTION" ]; then
     $GOTO_INSTRUMENT $LOG.bin $LOG.bin --remove-function-body "$FAIL_FUNCTION" \
                                         --generate-function-body "$FAIL_FUNCTION" \
@@ -36,7 +40,7 @@ run()
 
 cd $MALLOB
 EC=42 ; \
-$TOOL_BINARY -t=16 -mono-app=cbmc -mono=$LOG.bin -v=4 -compress-models -unwind-loops -s2f=$LOG.ok -cbmc-opts=--no-standard-checks,--slice-formula,--stop-on-fail,--object-bits,$OBJ_BITS,$PROPERTY ; \
+$TOOL_BINARY -t=16 -mono-app=cbmc -mono=$LOG.bin -v=0 -compress-models -unwind-loops -s2f=$LOG.ok -cbmc-opts=--no-standard-checks,--slice-formula,--stop-on-fail,--object-bits,$OBJ_BITS,$PROPERTY ; \
 
 if grep -q "s FINAL EC=" $LOG.ok; then EC=$(grep -o "s FINAL EC=[0-9]*" $LOG.ok | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]'); else EC=5; fi ; \
 echo $EC

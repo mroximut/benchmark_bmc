@@ -3,6 +3,7 @@ spack env activate myenv
 mkdir -p 2ls_cadical
 cd 2ls_cadical 
 git clone git@github.com:mroximut/2ls.git --branch ipasir
+cd 2ls
 bash ./build.sh
 cd ..
 mkdir -p mallob_bmc

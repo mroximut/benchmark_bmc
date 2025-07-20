@@ -35,7 +35,7 @@ def plot_instances_solved_across_runtime(files: List[str]):
     plt.tight_layout()
     plt.show()
     plt.xscale('log')
-    plt.savefig(os.path.join(os.path.dirname(files[0]), 'instances_solved_vs_runtime.png'))
+    plt.savefig(os.path.join(os.path.dirname(files[1]), 'instances_solved_vs_runtime.png'))
 
 def speedup_values(file1, file2, threshold=0):
     with open(file1.replace('.csv', '_speedups.txt'), 'a') as f:
@@ -57,27 +57,28 @@ def speedup_values(file1, file2, threshold=0):
 
 
 if __name__ == "__main__":
+    base01 = "./test_termination_reachsafety_others505050_trivial01/"
     base = "./test_termination_reachsafety_others505050/"
     compare_csv_files(base + "results/2ls_results.csv",
-                        base +"results/mallob-2ls_results.csv")
-    #plot_instances_solved_across_runtime([base + "results/2ls_results.csv",
-    #                    base + "results/mallob-2ls_results.csv"])
+                        base01 +"results/mallob-2ls_results.csv")
+    plot_instances_solved_across_runtime([base + "results/2ls_results.csv",
+                        base01 + "results/mallob-2ls_results.csv"])
     speedups = speedup_values(base + "results/2ls_results.csv",
-                              base + "results/mallob-2ls_results.csv")
+                              base01 + "results/mallob-2ls_results.csv")
     
     print(f"Speedups: {sorted(speedups)}")
     geometric_mean = np.exp(np.mean(np.log(speedups)))
     print(f"Geometric mean of speedups: {geometric_mean:.2f}")
 
-    base = "./test_all200/"
-    compare_csv_files(base + "results/2ls_results.csv",
-                        base +"results/mallob-2ls_results.csv")
-    #plot_instances_solved_across_runtime([base + "results/2ls_results.csv",
-    #                    base + "results/mallob-2ls_results.csv"])
-    speedups = speedup_values(base + "results/2ls_results.csv",
-                              base + "results/mallob-2ls_results.csv")
+    # base = "./test_all200/"
+    # compare_csv_files(base + "results/2ls_results.csv",
+    #                     base +"results/mallob-2ls_results.csv")
+    # #plot_instances_solved_across_runtime([base + "results/2ls_results.csv",
+    # #                    base + "results/mallob-2ls_results.csv"])
+    # speedups = speedup_values(base + "results/2ls_results.csv",
+    #                           base + "results/mallob-2ls_results.csv")
     
-    print(f"Speedups: {sorted(speedups)}")
-    geometric_mean = np.exp(np.mean(np.log(speedups)))
-    print(f"Geometric mean of speedups: {geometric_mean:.2f}")
+    # print(f"Speedups: {sorted(speedups)}")
+    # geometric_mean = np.exp(np.mean(np.log(speedups)))
+    # print(f"Geometric mean of speedups: {geometric_mean:.2f}")
    

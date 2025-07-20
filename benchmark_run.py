@@ -17,18 +17,21 @@ class SolverType(Enum):
 
 
 class Solver:
-    def __init__(self, type: SolverType, dir: str = "./", save_dir: str = "./", sv_benchmarks_dir: str = "../benchmark/sv-benchmarks/"):
+    def __init__(self, type: SolverType, dir: str = "./", save_dir: str = "./", sv_benchmarks_dir: str = "../benchmark/sv-benchmarks/", postfix: str = ""):
         self.type = type
         self.command = type.value + '-wrapper'
         self.dir = dir
         self.save_dir = save_dir
         self.sv_benchmarks_dir = sv_benchmarks_dir
         self.result = None
+        self.postfix = postfix
 
     def run(self, task: SingleBenchmarkTask, timeout: float = config['TIMEOUT'], log: bool = True, check_csv: bool = False) -> SingleBenchmarkResult:
+
+        self.cleanup()
         
         if check_csv:
-            csv_file = os.path.join(self.save_dir, "results", f"{self.type.value}_results.csv")
+            csv_file = os.path.join(self.save_dir, "results", f"{self.type.value + self.postfix}_results.csv")
             result = self.get_result_from_csv(csv_file, task)
             if result:
                 print(f"Result found in CSV for task {task.task_name}: {result.exit_code}, in {result.processing_time}s from which {result.sat_time}s SAT.")
@@ -89,7 +92,7 @@ class Solver:
                         result.compile_time = float(line.split(':')[-1].strip())
                     elif 't FINAL SAT_TIME' in line:
                         result.sat_time = float(line.split(':')[-1].strip())
-                    elif 't PROCESSING_TIME' in line:
+                    elif 't FINAL PROCESSING_TIME' in line:
                         result.processing_time = float(line.split(':')[-1].strip())
                     elif 's FINAL EC' in line:
                         result.exit_code = int(line.split('=')[-1].strip())
@@ -128,7 +131,7 @@ class Solver:
                 print(f"{e}")
 
     def save_log(self, stdout:str, save_dir: str):
-        log_file = os.path.join(save_dir, "logs", f"{self.type.value}_logs", f"{self.result.task.task_name}_{self.result.task.input_file.replace('/', '_')}.log")
+        log_file = os.path.join(save_dir, "logs", f"{self.type.value + self.postfix}_logs", f"{self.result.task.task_name}_{self.result.task.input_file.replace('/', '_')}.log")
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
         with open(log_file, 'w') as f:
             f.write(stdout)
@@ -156,7 +159,7 @@ class Solver:
             "sat_calls": self.result.sat_calls,
             'last_line': self.result.last_line,
         }])
-        save_path = os.path.join(save_dir, "results", f"{self.type.value}_results.csv")
+        save_path = os.path.join(save_dir, "results", f"{self.type.value + self.postfix}_results.csv")
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         
         if os.path.exists(save_path):
@@ -265,8 +268,14 @@ class BenchmarkRunner:
         print(f"Saved {len(self.tasks)} with seed {seed_tmp} tasks to {save_file}.")
 
 
-    def load_tasks_from_csv(self, csv_file: str):
-        df = pd.read_csv(csv_file)
+    def load_tasks_from_csv(self, csv_file: str = "tasks.csv"):
+        csv_path = os.path.join(self.save_directory, csv_file)
+        file_exists = os.path.exists(csv_path)
+        if not file_exists:
+            print(f"No tasks file found at {csv_path}. Please save tasks first.")
+            return
+        print(f"Loading tasks from {csv_file}...")
+        df = pd.read_csv(csv_path)
         self.tasks = [
             SingleBenchmarkTask(
                 task_name=row['task_name'],
@@ -308,17 +317,21 @@ if __name__ == "__main__":
     #task = str_to_task("Termination-MainControlFlow,c/termination-restricted-15/WhilePart.c,64,c/properties/termination.prp,False")
     #print(Solver(SolverType.MALLOB_2LS).run(task, timeout=60, log=True))
     
-    runner = BenchmarkRunner([], [SolverType.TWOLS, SolverType.MALLOB_2LS], save_directory='./test_all200')
-    
-    df_exclude = pd.read_csv('./test_termination_reachsafety_others505050/tasks.csv')
-    exclude = df_exclude['input_file'].tolist()
+    runner = BenchmarkRunner([], [SolverType.CBMC, SolverType.MALLOB_CBMC], save_directory='./test_all200/')
+    runner.load_tasks_from_csv()
+    runner.run(timeout=10, log=True, dry_run=False)
+
+
+
+    #df_exclude = pd.read_csv('./test_termination_reachsafety_others505050/tasks.csv')
+    #exclude = df_exclude['input_file'].tolist()
     
     #runner.set_tasks_randomly(no_tasks=50, all_tasks_csv='benchmark_tasks.csv', seed=42424242, category=['MemSafety'])
     #runner.set_tasks_randomly(no_tasks=50, all_tasks_csv='benchmark_tasks.csv', seed=42424242, category=['NoOverflows'])
     #runner.set_tasks_randomly(no_tasks=50, all_tasks_csv='benchmark_tasks.csv', seed=42424242, category=['SoftwareSystems'])
 
-    runner.set_tasks_randomly(no_tasks=200, all_tasks_csv='benchmark_tasks.csv', seed=123456, exclude=exclude)
+    #runner.set_tasks_randomly(no_tasks=200, all_tasks_csv='benchmark_tasks.csv', seed=123456)
     
-    runner.save_tasks_to_csv()
+    #runner.save_tasks_to_csv()
     
-    runner.run(timeout=900, log=True, dry_run=False)
+    #runner.run(timeout=900, log=True, dry_run=False)
