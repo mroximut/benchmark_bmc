@@ -11,6 +11,7 @@ class SolverType(Enum):
     CBMC = "cbmc"
     TWOLS = "2ls"
     MALLOB_CBMC = "mallob-cbmc"
+    MALLOB_PARALLEL_CBMC = "mallob-parallel-cbmc"
     MALLOB_2LS = "mallob-2ls"
     MALLOB_CBMC_FILESYSTEM = "mallob-cbmc-filesystem"
     MALLOB_2LS_FILESYSTEM = "mallob-2ls-filesystem"
@@ -117,18 +118,19 @@ class Solver:
 
     def cleanup(self):
         commands = []
-        if self.type == SolverType.CBMC:
-            commands.append("pkill -f cbmc")
-        elif self.type == SolverType.TWOLS:
-            commands.append("pkill -f 2ls")
-        elif self.type in  [SolverType.MALLOB_CBMC, SolverType.MALLOB_2LS]:
-            commands.extend(["pkill -f mallob", "pkill -f MainThread", "pkill -f mpirun", "pkill -f mallob_sat_process"])
-
+        #if self.type == SolverType.CBMC:
+        #    commands.append("pkill -f cbmc")
+        #elif self.type == SolverType.TWOLS:
+        #    commands.append("pkill -f 2ls")
+        #elif self.type in  [SolverType.MALLOB_CBMC, SolverType.MALLOB_2LS, SolverType.MALLOB_PARALLEL_CBMC]:
+        commands.extend(["pkill -f cbmc","pkill -f 2ls","pkill -f mallob", "pkill -f MainThread", "pkill -f mpirun", "pkill -f mallob_sat_process"])
+        time.sleep(1)
         for command in commands:
             try:
                 subprocess.run(command, shell=True, check=True)
             except Exception as e:
                 print(f"{e}")
+        time.sleep(1)
 
     def save_log(self, stdout:str, save_dir: str):
         log_file = os.path.join(save_dir, "logs", f"{self.type.value + self.postfix}_logs", f"{self.result.task.task_name}_{self.result.task.input_file.replace('/', '_')}.log")
@@ -317,9 +319,9 @@ if __name__ == "__main__":
     #task = str_to_task("Termination-MainControlFlow,c/termination-restricted-15/WhilePart.c,64,c/properties/termination.prp,False")
     #print(Solver(SolverType.MALLOB_2LS).run(task, timeout=60, log=True))
     
-    runner = BenchmarkRunner([], [SolverType.CBMC, SolverType.MALLOB_CBMC], save_directory='./test_all200/')
+    runner = BenchmarkRunner([], [SolverType.MALLOB_PARALLEL_CBMC], save_directory='./test_all200/')
     runner.load_tasks_from_csv()
-    runner.run(timeout=10, log=True, dry_run=False)
+    runner.run(timeout=900, log=True, dry_run=False)
 
 
 
