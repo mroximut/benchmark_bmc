@@ -40,7 +40,7 @@ run()
 
 cd $MALLOB
 EC=42 ; \
-RDMAV_FORK_SAFE=1; mpirun -np 4 --bind-to core -map-by ppr:4:node:pe=2 $TOOL_BINARY -t=2 -c=-1 -v=0 -parallel-unwind=4 -mono-app=cbmc -mono=$LOG.bin -compress-models -unwind-loops -s2f=$LOG.ok -cbmc-opts=--no-standard-checks,--slice-formula,--stop-on-fail,--object-bits,$OBJ_BITS,$PROPERTY ; \
+RDMAV_FORK_SAFE=1; mpirun -np 4 --bind-to core -map-by ppr:4:node:pe=2 $TOOL_BINARY -t=4 -c=-1 -v=0 -parallel-unwind=4 -mono-app=cbmc -mono=$LOG.bin -compress-models -unwind-loops -s2f=$LOG.ok -cbmc-opts=--no-standard-checks,--slice-formula,--stop-on-fail,--object-bits,$OBJ_BITS,$PROPERTY ; \
 
 if grep -q "s FINAL EC=" $LOG.ok; then EC=$(grep -o "s FINAL EC=[0-9]*" $LOG.ok | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]'); else EC=5; fi ; \
 echo $EC
