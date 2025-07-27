@@ -27,9 +27,9 @@ class Solver:
         self.result = None
         self.postfix = postfix
 
-    def run(self, task: SingleBenchmarkTask, timeout: float = config['TIMEOUT'], log: bool = True, check_csv: bool = False) -> SingleBenchmarkResult:
-
-        self.cleanup()
+    def run(self, task: SingleBenchmarkTask, timeout: float = config['TIMEOUT'], log: bool = True, check_csv: bool = False, dry: bool = False) -> SingleBenchmarkResult:
+        if not dry:
+            self.cleanup()
         
         if check_csv:
             csv_file = os.path.join(self.save_dir, "results", f"{self.type.value + self.postfix}_results.csv")
@@ -56,6 +56,9 @@ class Solver:
             '--' + str(task.data_model)
         ]
         print(f"Running command: {' '.join(subprocess_command)}")
+        if dry:
+            print("Dry run mode: not executing the command.")
+            return
         start = time.time()
         res = None
 
@@ -316,12 +319,16 @@ if __name__ == "__main__":
     # solver = Solver(SolverType.TWOLS, sv_benchmarks_dir="./")
     # solver.run(task, timeout=60, log=True)
     # solver.save_to_csv()
-    #task = str_to_task("Termination-MainControlFlow,c/termination-restricted-15/WhilePart.c,64,c/properties/termination.prp,False")
-    #print(Solver(SolverType.MALLOB_2LS).run(task, timeout=60, log=True))
+    task = str_to_task("MemSafety-Juliet,c/Juliet_Test/CWE401_Memory_Leak---s03---CWE401_Memory_Leak__struct_twoIntsStruct_malloc_34_good.i,64,c/properties/valid-memsafety.prp,True")
+    task2 = str_to_task("ReachSafety-Combinations,c/combinations/square_5+soft_float_1-2a.c.cil.c,32,c/properties/unreach-call.prp,True")
+    task3 = str_to_task("ReachSafety-Recursive,c/recursive-simple/fibo_25-1.c,32,c/properties/unreach-call.prp,False")
+    task4 = str_to_task("NoOverflows-Main,c/nla-digbench-scaling/lcm1_valuebound20.c,32,c/properties/no-overflow.prp,True")
+    task5 = str_to_task("ReachSafety-ECA,c/eca-rers2012/Problem14_label28.c,32,c/properties/unreach-call.prp,False")
+    print(Solver(SolverType.MALLOB_PARALLEL_CBMC).run(task3, timeout=60, log=True, dry=True))
     
-    runner = BenchmarkRunner([], [SolverType.MALLOB_PARALLEL_CBMC], save_directory='./test_all200/')
-    runner.load_tasks_from_csv()
-    runner.run(timeout=900, log=True, dry_run=False)
+    #runner = BenchmarkRunner([], [SolverType.MALLOB_PARALLEL_CBMC], save_directory='./test_all200/')
+    #runner.load_tasks_from_csv()
+    #runner.run(timeout=900, log=True, dry_run=False)
 
 
 
