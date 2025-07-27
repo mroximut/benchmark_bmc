@@ -9,7 +9,7 @@ def compare_csv_files(file1, file2):
     df2 = pd.read_csv(file2)
 
     # Compare exit codes for each row
-    for idx in range(len(df2)):
+    for idx in range(len(df1)):
         val1 = df1.loc[idx, 'exit_code']
         val2 = df2.loc[idx, 'exit_code']
 
@@ -46,14 +46,17 @@ def speedup_values(file1, file2, threshold=0):
         for idx in range(len(df1)):
             if df1.loc[idx, 'exit_code'] == 0 and df2.loc[idx, 'exit_code'] == 0 or \
             df1.loc[idx, 'exit_code'] == 10 and df2.loc[idx, 'exit_code'] == 10:
+            #if "TRUE" in df1.loc[idx, 'last_line'] and "TRUE" in df2.loc[idx, "last_line"] or \
+            #   "FALSE" in df1.loc[idx, 'last_line'] and "FALSE" in df2.loc[idx, 'last_line']:
                 time1 = df1.loc[idx, 'processing_time']
                 time2 = df2.loc[idx, 'processing_time']
                 task_name, input_file, data_model, property_file, expected = df1.loc[idx, ['task_name', 'input_file', 'data_model', 'property_file', 'expected']]
-                if time1 > threshold and time2 > threshold:
-                    speedup = time1 / time2
-                    f.write(f"{task_name},{input_file},{data_model},{property_file},{expected}\n")
-                    f.write(f"{idx}: {time1:.2f} / {time2:.2f} = {speedup:.2f}\n")
-                    speedups.append(speedup)
+                #if time1 > threshold and time2 > threshold:
+                speedup = time1 / time2
+                f.write(f"{task_name},{input_file},{data_model},{property_file},{expected}\n")
+                f.write(f"{idx}: {time1:.2f} / {time2:.2f} = {speedup:.2f}\n")
+                speedups.append(speedup)
+            
     return speedups
             
 
@@ -73,14 +76,13 @@ if __name__ == "__main__":
     # print(f"Geometric mean of speedups: {geometric_mean:.2f}")
 
     base = "./test_all200/"
-    #compare_csv_files(base + "results/cbmc_results.csv",
-    #                    base +"results/mallob-cbmc_results.csv",
-    #                    base + "results/mallob-parallel-cbmc_results.csv")
-    #plot_instances_solved_across_runtime([base + "results/cbmc_results.csv",
-    #                    base + "results/mallob-cbmc_results.csv",
-    #                    base + "results/mallob-parallel-cbmc_results.csv"], "instances_solved_vs_runtime_cbmc.png")
-    speedups = speedup_values(base + "results/cbmc_results.csv",
-                               base + "results/mallob-cbmc_results.csv")
+    compare_csv_files( base +"results/mallob-cbmc_results.csv",
+                        base + "results/mallob-parallel-cbmc_results.csv")
+    plot_instances_solved_across_runtime([base + "results/cbmc_results.csv",
+                        base + "results/mallob-cbmc_results.csv",
+                        base + "results/mallob-parallel-cbmc_results.csv"], "instances_solved_vs_runtime_cbmc.png")
+    speedups = speedup_values(base + "results/mallob-cbmc_results.csv",
+                               base + "results/mallob-parallel-cbmc_results.csv")
     
     print(f"Speedups: {sorted(speedups)}")
     geometric_mean = np.exp(np.mean(np.log(speedups)))

@@ -86,7 +86,7 @@ class Solver:
             result.total_runtime = time.time() - start
             if res and res.stdout:
                 output_lines = res.stdout.strip().split('\n')
-                last_lines = output_lines[-min(15, len(output_lines)):]
+                last_lines = output_lines[-min(50, len(output_lines)):]
                 result.last_line = last_lines[-1] if last_lines else ""
                 for line in last_lines:
                     if 't COMPILE_TIME' in line:
