@@ -92,16 +92,20 @@ class Solver:
                 last_lines = output_lines[-min(50, len(output_lines)):]
                 result.last_line = last_lines[-1] if last_lines else ""
                 for line in last_lines:
-                    if 't COMPILE_TIME' in line:
-                        result.compile_time = float(line.split(':')[-1].strip())
-                    elif 't FINAL SAT_TIME' in line:
-                        result.sat_time = float(line.split(':')[-1].strip())
-                    elif 't FINAL PROCESSING_TIME' in line:
-                        result.processing_time = float(line.split(':')[-1].strip())
-                    elif 's FINAL EC' in line:
-                        result.exit_code = int(line.split('=')[-1].strip())
-                    elif 't FINAL SAT_CALLS' in line:
-                        result.sat_calls = int(line.split(':')[-1].strip())
+                    try: 
+                        if 't COMPILE_TIME' in line:
+                            result.compile_time = float(line.split(':')[-1].strip())
+                        elif 't FINAL SAT_TIME' in line:
+                            result.sat_time = float(line.split(':')[-1].strip())
+                        elif 't FINAL PROCESSING_TIME' in line:
+                            result.processing_time = float(line.split(':')[-1].strip())
+                        elif 's FINAL EC' in line:
+                            result.exit_code = int(line.split('=')[-1].strip())
+                        elif 't FINAL SAT_CALLS' in line:
+                            result.sat_calls = int(line.split(':')[-1].strip())
+                    except Exception as e:
+                        print(f"Error parsing line: {line} with error {e}")
+                        continue
 
             else:
                 print("No output from the solver.")
@@ -324,7 +328,7 @@ if __name__ == "__main__":
     task3 = str_to_task("ReachSafety-Recursive,c/recursive-simple/fibo_25-1.c,32,c/properties/unreach-call.prp,False")
     task4 = str_to_task("NoOverflows-Main,c/nla-digbench-scaling/lcm1_valuebound20.c,32,c/properties/no-overflow.prp,True")
     task5 = str_to_task("ReachSafety-ECA,c/eca-rers2012/Problem14_label28.c,32,c/properties/unreach-call.prp,False")
-    print(Solver(SolverType.MALLOB_PARALLEL_CBMC).run(task3, timeout=60, log=True, dry=True))
+    print(Solver(SolverType.MALLOB_PARALLEL_CBMC).run(task4, timeout=60, log=True, dry=True))
     
     #runner = BenchmarkRunner([], [SolverType.MALLOB_PARALLEL_CBMC], save_directory='./test_all200/')
     #runner.load_tasks_from_csv()
