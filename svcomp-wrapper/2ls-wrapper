@@ -1,0 +1,261 @@
+#!/bin/bash
+# tool
+
+TOOL_BINARY=./2ls-binary
+TOOL_NAME=2LS
+FIND_OPTIONS=""
+
+# function to run the tool
+
+run()
+{
+  gmon_suffix=$GMON_OUT_PREFIX
+  export GMON_OUT_PREFIX="goto-cc_$gmon_suffix"
+  ./goto-cc -m$BIT_WIDTH --function $ENTRY "${BM[@]}" -o $LOG.bin
+  if [ -n "$FAIL_FUNCTION" ]; then
+    ./goto-instrument $LOG.bin $LOG.bin --remove-function-body "$FAIL_FUNCTION" \
+                                        --generate-function-body "$FAIL_FUNCTION" \
+                                        --generate-function-body-options assert-false
+  fi
+
+  export GMON_OUT_PREFIX="2ls_$gmon_suffix"
+  # add property-specific options
+  if [[ "$PROP" == "termination" ]]; then
+    PROPERTY1="$PROPERTY --termination --competition-mode"
+    PROPERTY2="$PROPERTY --nontermination --competition-mode"
+
+    # run the termination and nontermination analysis in parallel
+    $TOOL_BINARY --graphml-witness $LOG.witness --object-bits $OBJ_BITS $PROPERTY1 \
+      $LOG.bin >> $LOG.ok1 2>&1 &
+    PID1="$!"
+    $TOOL_BINARY --graphml-witness $LOG.witness --object-bits $OBJ_BITS $PROPERTY2 \
+      $LOG.bin >> $LOG.ok2 2>&1 &
+    PID2="$!"
+    # this might not work in all environments
+    wait -n &> /dev/null
+
+    # store the exit code of the first process that is finished
+    EC=$?
+
+    # find out which one has finished
+    for pid in $PID1 $PID2
+    do
+      if ! ps -p $pid &> /dev/null; then
+        EXITED=$pid
+        break
+      fi
+    done
+
+    # if the result of the first exiting analysis is inconclusive
+    # then wait for the other analysis to finish
+    if [ $EC -eq 5 ]; then
+      wait -n &> /dev/null
+      EC=$?
+      if [[ "$EXITED" == "$PID1" ]]; then
+        mv $LOG.ok2 $LOG.ok
+      else
+        mv $LOG.ok1 $LOG.ok
+      fi
+    else # we have a conclusive result, kill the other process
+      if [[ "$EXITED" == "$PID1" ]]; then
+        kill -9 $PID2 &> /dev/null
+        mv $LOG.ok1 $LOG.ok
+      else
+        kill -9 $PID1  &> /dev/null
+        mv $LOG.ok2 $LOG.ok
+      fi
+    fi
+  else
+    PROPERTY="$PROPERTY --heap --arrays --values-refine --k-induction --competition-mode"
+
+    # run the tool
+    $TOOL_BINARY --graphml-witness $LOG.witness --object-bits $OBJ_BITS $PROPERTY \
+      $LOG.bin >> $LOG.ok 2>&1
+
+    # store the exit code
+    EC=$?
+  fi
+}
+
+# main tool wrapper script
+# run "make <tool>-wrapper" to generate the wrapper script
+
+# map properties to tool options
+
+declare -A OPTIONS
+OPTIONS["label"]="--error-label"
+OPTIONS["unreach_call"]=""
+OPTIONS["termination"]=""
+OPTIONS["overflow"]="--signed-overflow-check --no-assertions"
+OPTIONS["memsafety"]="--pointer-check --memory-leak-check --bounds-check --no-assertions"
+OPTIONS["memcleanup"]="--pointer-check --memory-leak-check --memory-cleanup-check --bounds-check --no-assertions"
+OPTIONS["runtime-exception"]="--uncaught-exception-check-only-for"
+
+parse_property_file()
+{
+  local fn=$1
+
+  cat $fn | sed 's/[[:space:]]//g' | perl -n -e '
+if(/^CHECK\(init\((\S+)\(\)\),LTL\((\S+)\)\)$/) {
+  print "ENTRY=$1\n";
+  print "PROP=\"label\"\nLABEL=\"$1\"\n" if($2 =~ /^G!label\((\S+)\)$/);
+  if($2 =~ /^G!call\((?<fn>\S+)\(\)\)$/) {
+    print "PROP=\"unreach_call\"\n";
+    print "FAIL_FUNCTION=\"$+{fn}\"\n";
+  }
+  print "PROP=\"unreach_call\"\n" if($2 =~ /^Gassert$/);
+  print "PROP=\"memsafety\"\n" if($2 =~ /^Gvalid-(free|deref|memtrack)$/);
+  print "PROP=\"memcleanup\"\n" if($2 =~ /^Gvalid-memcleanup$/);
+  print "PROP=\"overflow\"\n" if($2 =~ /^G!overflow$/);
+  print "PROP=\"termination\"\n" if($2 =~ /^Fend$/);
+  # for Java only:
+  print "PROP=\"runtime-exception\"\nLABEL=\"$1\"\n" if($2 =~ /^G!uncaught\((\S+)\)$/);
+}'
+}
+
+parse_result()
+{
+  if tail -n 50 $LOG.ok | \
+      grep -Eq "Unmodelled library functions have been called" ; then
+    echo 'UNKNOWN'
+  elif tail -n 50 $LOG.ok | \
+      grep -Eq "^(\[.*\] .*__CPROVER_memory_leak == NULL|[[:space:]]*__CPROVER_memory_leak == NULL$)" ; then
+    if [[ "$PROP" == "memcleanup" ]]; then
+      echo 'FALSE(valid-memcleanup)'
+    else
+      echo 'FALSE(valid-memtrack)'
+    fi
+  elif tail -n 50 $LOG.ok | \
+      grep -Eq "^(\[.*\] |[[:space:]]*)dynamically allocated memory never freed in " ; then
+    if [[ "$PROP" == "memcleanup" ]]; then
+      echo 'FALSE(valid-memcleanup)'
+    else
+      echo 'FALSE(valid-memtrack)'
+    fi
+  elif tail -n 50 $LOG.ok | \
+      grep -Eq "^(\[.*\] |[[:space:]]*)dereference failure:" ; then
+    echo 'FALSE(valid-deref)'
+  elif tail -n 50 $LOG.ok | \
+      grep -Eq "^(\[.*\] |[[:space:]]*)array.* (lower|upper) bound in " ; then
+    echo 'FALSE(valid-deref)'
+  elif tail -n 50 $LOG.ok | \
+      grep -Eq "^[[:space:]]+mem(cpy|set|move) (source region readable|destination region writeable)" ; then
+    echo 'FALSE(valid-deref)'
+  elif tail -n 50 $LOG.ok | \
+      grep -Eq "^(\[.*\] double free|[[:space:]]*double free$|[[:space:]]*free argument must be NULL or valid pointer$)" ; then
+    echo 'FALSE(valid-free)'
+  elif tail -n 50 $LOG.ok | \
+      grep -Eq "^(\[.*\] free called for stack-allocated object|[[:space:]]*free called for stack-allocated object$)" ; then
+    echo 'FALSE(valid-free)'
+  elif tail -n 50 $LOG.ok | \
+      grep -Eq "^(\[.*\] free argument has offset zero|[[:space:]]* free argument has offset zero$)" ; then
+    if tail -n 50 $LOG.ok | grep -Eq "^[[:space:]]+[a-zA-Z0-9_]+=INVALID-" ; then
+      echo 'FALSE(valid-deref)'
+    else
+      echo 'FALSE(valid-free)'
+    fi
+  elif tail -n 50 $LOG.ok | \
+      grep -Eq "^(\[.*\] |[[:space:]]*)free argument (is|must be) dynamic object" ; then
+    if tail -n 50 $LOG.ok | grep -Eq "^[[:space:]]+[a-zA-Z0-9_]+=INVALID-" ; then
+      echo 'FALSE(valid-deref)'
+    else
+      echo 'FALSE(valid-free)'
+    fi
+  elif tail -n 50 $LOG.ok | \
+      grep -Eq "^(\[.*\] |[[:space:]]*)arithmetic overflow on signed" ; then
+    echo 'FALSE(no-overflow)'
+  elif [[ "$PROP" == "termination" ]]; then
+    echo 'FALSE(termination)'
+  else
+    echo FALSE
+  fi
+}
+
+process_graphml()
+{
+  if [ -f $LOG.witness ]; then
+    if [ $1 -eq 0 ]; then
+      TYPE="correctness_witness"
+    else
+      TYPE="violation_witness"
+    fi
+    cat $LOG.witness | perl -p -e "s/(<graph edgedefault=\"directed\">)/\$1\\E
+      <data key=\"witness-type\">$(echo $TYPE)<\/data>
+      <data key=\"producer\">$(echo $TOOL_NAME)<\/data>
+      <data key=\"specification\">$(<$PROP_FILE)<\/data>
+      <data key=\"programfile\">$(echo ${BM[0]} | sed 's8/8\\/8g')<\/data>
+      <data key=\"programhash\">$(sha256sum ${BM[0]} | awk '{print $1}')<\/data>
+      <data key=\"architecture\">${BIT_WIDTH}bit<\/data>
+      <data key=\"creationtime\">$(date -Iseconds)<\/data>\\Q/"
+  fi
+}
+
+OBJ_BITS="11"
+BIT_WIDTH="64"
+declare -a BM
+BM=()
+PROP_FILE=""
+WITNESS_FILE=""
+
+while [ -n "$1" ] ; do
+  case "$1" in
+    --32|--64) BIT_WIDTH="${1##--}" ; shift 1 ;;
+    --propertyfile) PROP_FILE="$2" ; shift 2 ;;
+    --graphml-witness) WITNESS_FILE="$2" ; shift 2 ;;
+    --version) $TOOL_BINARY --version ; exit 0 ;;
+    *) SRC=(`eval "find $1 $FIND_OPTIONS"`) ; BM=("${BM[@]}" "${SRC[@]}") ; shift 1 ;;
+  esac
+done
+
+if [ -z "${BM[0]}" ] || [ -z "$PROP_FILE" ] ; then
+  echo "Missing benchmark or property file"
+  exit 1
+fi
+
+if [ ! -s "${BM[0]}" ] || [ ! -s "$PROP_FILE" ] ; then
+  echo "Empty benchmark or property file"
+  exit 1
+fi
+
+eval `parse_property_file $PROP_FILE`
+
+if [[ "$PROP" == "" ]]; then
+  echo "Unrecognized property specification"
+  exit 1
+elif [[ "$PROP" == "label" ]]; then
+  PROPERTY="${OPTIONS[$PROP]} $LABEL"
+elif [[ "$PROP" == "runtime-exception" ]]; then
+  PROPERTY="${OPTIONS[$PROP]} $LABEL"
+else
+  PROPERTY=${OPTIONS[$PROP]}
+fi
+
+export ENTRY
+export PROPERTY
+export BIT_WIDTH
+export BM
+export PROP
+export OBJ_BITS
+
+export GMON_OUT_PREFIX=`basename ${BM[0]}`.gmon.out
+
+export BM_DIR=`mktemp -d -t ${TOOL_NAME}-benchmark.XXXXXX`
+
+export LOG=`mktemp -t ${TOOL_NAME}-log.XXXXXX`
+trap "rm -rf $LOG $LOG.latest $LOG.ok $LOG.witness $LOG.bin $BM_DIR" EXIT
+
+run
+
+if [ ! -s $LOG.ok ] ; then
+  exit 1
+fi
+
+cat $LOG.ok
+case $EC in
+  0) if [[ "$WITNESS_FILE" != "" ]]; then process_graphml $EC > $WITNESS_FILE; \
+fi; echo "TRUE" ;;
+  10) if [[ "$WITNESS_FILE" != "" ]]; then process_graphml $EC > $WITNESS_FILE;\
+ fi; parse_result ;;
+  *) echo "UNKNOWN" ;;
+esac
+exit $EC

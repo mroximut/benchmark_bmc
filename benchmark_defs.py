@@ -140,29 +140,105 @@ def extract_benchmark_set(benchmark_xml_path: str) -> List[BenchmarkSet]:
 
     return sets
 
-if __name__ == "__main__":
-    benchmark_sets = (extract_benchmark_set(config['BASE_DIR']+ '/benchmark/benchmark-defs/cbmc.xml'))
+LINE_RE = re.compile(
+    r'^(?P<inputfile>\S+)\s+(?P<status>.+?)\s+(?P<cpu_time>\d+(?:\.\d+)?)\s+(?P<wall_time>\d+(?:\.\d+)?)\s+(?P<host>\S+)\s*$'
+)
 
-    #print("Benchmark Sets:")
-    #for benchmark_set in benchmark_sets:
-    #    print(f"Task Name: {benchmark_set.task_name}, Set File: {benchmark_set.set_file}, Property File: {benchmark_set.property_file}")
+def parse_results_txt(txt_path: str) -> pd.DataFrame:
     rows = []
-    for benchmark_set in benchmark_sets:
-        tasks = parse_benchmark_set(benchmark_set, single_property=True)
-        print(f"Tasks for {benchmark_set.task_name}:")
-        for task in tasks:
-            if list(task.property_files.keys()):
-                rows.append([
-                    task.task_name,
-                    task.input_file,
-                    task.data_model,
-                    list(task.property_files.keys())[0],
-                    list(task.property_files.values())[0]
-                ])
-            else:
-                print(f"No property files found for task: {task.property_files}")
-    df = pd.DataFrame(rows, columns=['task_name', 'input_file', 'data_model', 'property_file', 'expected'])
-    df.to_csv('benchmark_tasks2.csv', index=False)
-        #print(df)
+    with open(txt_path, 'r', encoding='utf-8', errors='ignore') as fh:
+        for line in fh:
+            line = line.rstrip('\n')
+            if not line or line.startswith('//') or set(line.strip()) == {'-'}:
+                continue
+            m = LINE_RE.match(line)
+            if not m:
+                # skip header lines like "inputfile  status  cpu time ..." etc.
+                continue
+            data = m.groupdict()
+            # normalize numeric types
+            data['cpu_time'] = float(data['cpu_time'])
+            data['wall_time'] = float(data['wall_time'])
+            # trim whitespace in status
+            data['status'] = data['status'].strip()
+            rows.append(data)
+    df = pd.DataFrame(rows, columns=['inputfile', 'status', 'cpu_time', 'wall_time', 'host'])
+    return df
 
-           # print(f"Input File: {task.input_file}\n Data Model: {task.data_model}\n Property Files: {task.property_files}\n Task Name: {task.task_name}\n")
+if __name__ == "__main__":
+    save_dir = './tasks/'
+    tool = '2ls'
+    if tool == 'cbmc':
+        results = parse_results_txt('./cbmc.2023-12-17_05-51-17.results.txt')
+    elif tool == '2ls':
+        results = parse_results_txt('./2ls.2023-11-30_09-35-29.results.txt')
+
+    results.to_csv(save_dir + tool + '_official_results.csv', index=False)
+    col = "status"
+    mask = results[col].str.lower().str.startswith(("true","false"), na=False)
+    df_filtered = results[mask]
+    
+    df_filtered = df_filtered.sort_values(by='cpu_time')
+    df_filtered.to_csv(save_dir + tool + '_truefalse_results.csv', index=False)
+
+    df_truefalse_over_10 = df_filtered[(df_filtered['cpu_time'] >= 10.0) & (df_filtered['cpu_time'] < 100.0)]
+    df_truefalse_over_10.to_csv(save_dir + tool + '_truefalse_over_10.csv', index=False)
+
+    df_truefalse_over_100 = df_filtered[(df_filtered['cpu_time'] >= 100.0) & (df_filtered['cpu_time'] < 500.0)]
+    df_truefalse_over_100.to_csv(save_dir + tool + '_truefalse_over_100.csv', index=False)
+
+    df_truefalse_over_500 = df_filtered[df_filtered['cpu_time'] >= 500.0]
+    df_truefalse_over_500.to_csv(save_dir + tool + '_truefalse_over_500.csv', index=False)
+
+    base = config['BASE_DIR'] + "/benchmark/sv-benchmarks/c/"
+    for i, df in enumerate([df_truefalse_over_10, df_truefalse_over_100, df_truefalse_over_500]):
+        singlebenchtasks = []
+        for row in df.itertuples(index=False):
+            try:
+                benchtask = parse_yml_file(base + row.inputfile)
+            except Exception as e:
+                print(f"Error parsing YAML file for row {row}: {e}")
+                continue
+            for prop_file, expected in benchtask.property_files.items():
+                singlebenchtask = SingleBenchmarkTask(
+                    task_name=tool.upper(),
+                    input_file=benchtask.input_file,
+                    data_model=benchtask.data_model,
+                    property_file=prop_file,
+                    expected=expected
+                )
+                singlebenchtasks.append(singlebenchtask)
+    
+        df_tasks = pd.DataFrame([task.__dict__ for task in singlebenchtasks])
+        threshold = [10, 100, 500][i]
+        df_tasks.to_csv(f'{save_dir}{tool}_truefalse_benchmark_tasks_over{threshold}.csv', index=False)
+
+
+
+
+# if __name__ == "__main__":
+#     benchmark_sets = (extract_benchmark_set(config['BASE_DIR']+ '/benchmark/benchmark-defs/cbmc.xml'))
+
+#     #print("Benchmark Sets:")
+#     #for benchmark_set in benchmark_sets:
+#     #    print(f"Task Name: {benchmark_set.task_name}, Set File: {benchmark_set.set_file}, Property File: {benchmark_set.property_file}")
+#     rows = []
+#     for benchmark_set in benchmark_sets:
+#         tasks = parse_benchmark_set(benchmark_set, single_property=True)
+#         print(f"Tasks for {benchmark_set.task_name}:")
+#         for task in tasks:
+#             if list(task.property_files.keys()):
+#                 rows.append([
+#                     task.task_name,
+#                     task.input_file,
+#                     task.data_model,
+#                     list(task.property_files.keys())[0],
+#                     list(task.property_files.values())[0]
+#                 ])
+#             else:
+#                 print(f"No property files found for task: {task.property_files}")
+#     df = pd.DataFrame(rows, columns=['task_name', 'input_file', 'data_model', 'property_file', 'expected'])
+#     df.to_csv('benchmark_tasks2.csv', index=False)
+#         #print(df)
+
+#            # print(f"Input File: {task.input_file}\n Data Model: {task.data_model}\n Property Files: {task.property_files}\n Task Name: {task.task_name}\n")

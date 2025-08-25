@@ -1,0 +1,90 @@
+2LS version 0.10.0
+Reading GOTO program from file /tmp/MALLOB_2LS-log.pRzn8T.bin
+Generating GOTO Program
+Adding CPROVER library
+Function Pointer Removal
+Performing full inlining
+Generic Property Instrumentation
+Constant Propagation
+Using heap domain
+Computing SSA of __CPROVER__start
+Simplifying
+Max-unwind is 4294967295
+Unwinding (k=0)
+Checking properties of __CPROVER__start
+Entered prop solve
+91140 variables, 491796 clauses
+SAT checker: instance is SATISFIABLE
+Loops not fully unwound
+Running refinement loop with Mallob SAT Solver
+Entered prop solve
+91140 variables, 491797 clauses
+SAT checker: instance is UNSATISFIABLE
+Result after unwinding: PASS
+k-induction proof found after 0 unwinding(s)
+** statistics: 
+  number of solver instances: 1
+  number of solver calls: 3
+  number of summaries used: 0
+  number of termination arguments computed: 0
+
+
+** 0 of 1 unknown
+** 0 of 1 failed
+VERIFICATION SUCCESSFUL
+t SAT_TIME: 0.233922
+SAT checker: instance is deleted
+file <built-in-additions> line 21: warning: conflicting initializers for variable "__CPROVER_max_malloc_size"
+using old value in module dijkstra-u_unwindbound50 file <built-in-additions> line 21
+8388608u
+ignoring new value in module <built-in-library> file <built-in-additions> line 21
+1048576u
+
+s EC=0
+t SAT_TIME: 0.233922
+t PROCESSING_TIME: 0.319015
+2LS version 0.10.0
+Reading GOTO program from file /tmp/MALLOB_2LS-log.YslVlB.bin
+Generating GOTO Program
+Adding CPROVER library
+Function Pointer Removal
+Performing full inlining
+Generic Property Instrumentation
+Constant Propagation
+Using heap domain
+Computing SSA of __CPROVER__start
+Simplifying
+Max-unwind is 4294967295
+Unwinding (k=0)
+Checking properties of __CPROVER__start
+Entered prop solve
+91140 variables, 491796 clauses
+SAT checker: instance is SATISFIABLE
+Loops not fully unwound
+Running refinement loop with Mallob SAT Solver
+Entered prop solve
+91140 variables, 491797 clauses
+SAT checker: instance is UNSATISFIABLE
+Result after unwinding: PASS
+k-induction proof found after 0 unwinding(s)
+** statistics: 
+  number of solver instances: 1
+  number of solver calls: 3
+  number of summaries used: 0
+  number of termination arguments computed: 0
+
+
+** 0 of 1 unknown
+** 0 of 1 failed
+VERIFICATION SUCCESSFUL
+t SAT_TIME: 0.230387
+SAT checker: instance is deleted
+file <built-in-additions> line 21: warning: conflicting initializers for variable "__CPROVER_max_malloc_size"
+using old value in module dijkstra-u_unwindbound50 file <built-in-additions> line 21
+8388608u
+ignoring new value in module <built-in-library> file <built-in-additions> line 21
+1048576u
+
+s EC=0
+t SAT_TIME: 0.230387
+t PROCESSING_TIME: 0.331211

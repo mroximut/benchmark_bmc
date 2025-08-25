@@ -1,8 +1,7 @@
 .venv/
-other_wrappers/
-svcomp-wrapper/
 test_programs/
 logs/
 results/
 test/
 __pycache__/
+.history/
