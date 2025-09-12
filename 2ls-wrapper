@@ -25,8 +25,13 @@ run()
   export GMON_OUT_PREFIX="2ls_$gmon_suffix"
   # add property-specific options
   if [[ "$PROP" == "termination" ]]; then
-    PROPERTY1="$PROPERTY --termination --competition-mode"
-    PROPERTY2="$PROPERTY --nontermination --competition-mode"
+    if [[ "$DUMP_CNF" != "" ]]; then
+      PROPERTY1="$PROPERTY --termination --competition-mode --dump-cnf ${DUMP_CNF}_term"
+      PROPERTY2="$PROPERTY --nontermination --competition-mode --dump-cnf ${DUMP_CNF}_nonterm"
+    else
+      PROPERTY1="$PROPERTY --termination --competition-mode"
+      PROPERTY2="$PROPERTY --nontermination --competition-mode"
+    fi
 
     # run the termination and nontermination analysis in parallel
     $TOOL_BINARY --graphml-witness $LOG.witness --object-bits $OBJ_BITS $PROPERTY1 \
@@ -70,7 +75,11 @@ run()
       fi
     fi
   else
-    PROPERTY="$PROPERTY --heap --arrays --values-refine --k-induction --competition-mode"
+    if [[ "$DUMP_CNF" != "" ]]; then
+      PROPERTY="$PROPERTY --heap --arrays --values-refine --k-induction --competition-mode --dump-cnf $DUMP_CNF"
+    else
+      PROPERTY="$PROPERTY --heap --arrays --values-refine --k-induction --competition-mode"
+    fi
 
     # run the tool
     $TOOL_BINARY --graphml-witness $LOG.witness --object-bits $OBJ_BITS $PROPERTY \
@@ -210,6 +219,7 @@ while [ -n "$1" ] ; do
     --propertyfile) PROP_FILE="$2" ; shift 2 ;;
     --graphml-witness) WITNESS_FILE="$2" ; shift 2 ;;
     --version) $TOOL_BINARY --version ; exit 0 ;;
+    --dump-cnf) DUMP_CNF="$2" ; shift 2 ;;
     *) SRC=(`eval "find $1 $FIND_OPTIONS"`) ; BM=("${BM[@]}" "${SRC[@]}") ; shift 1 ;;
   esac
 done
@@ -243,6 +253,7 @@ export BIT_WIDTH
 export BM
 export PROP
 export OBJ_BITS
+export DUMP_CNF
 
 export GMON_OUT_PREFIX=`basename ${BM[0]}`.gmon.out
 
