@@ -36,7 +36,7 @@ run()
 
     cd $MALLOB
     # run the tool
-    RDMAV_FORK_SAFE=1; mpirun -np 2 --bind-to core -map-by ppr:2:node:pe=8 $TOOL_BINARY -v=0 -t=8 -c=2 -termination-analysis -mono-app=2ls -mono=$LOG.bin -compress-models -s2f=$LOG.ok -2ls-opts=--graphml-witness,$LOG.witness,--object-bits,$OBJ_BITS,$PROPERTY ;\
+    RDMAV_FORK_SAFE=1; mpirun -np 2 --bind-to core -map-by ppr:2:node:pe=8 $TOOL_BINARY -v=4 -t=8 -c=2 -termination-analysis -mono-app=2ls -mono=$LOG.bin -compress-models -cbmc-log=$LOG.ok -2ls-opts=--graphml-witness,$LOG.witness,--object-bits,$OBJ_BITS,$PROPERTY ;\
   else
     PROPERTY="$PROPERTY --heap --arrays --values-refine --k-induction --competition-mode"
 
@@ -48,7 +48,7 @@ run()
 
     cd $MALLOB
     # run the tool
-    $TOOL_BINARY -v=0 -t=16 -mono-app=2ls -mono=$LOG.bin -compress-models -s2f=$LOG.ok -2ls-opts=--graphml-witness,$LOG.witness,--object-bits,$OBJ_BITS,$PROPERTY ;\
+    $TOOL_BINARY -v=4 -t=16 -mono-app=2ls -mono=$LOG.bin -compress-models -cbmc-log=$LOG.ok -2ls-opts=--graphml-witness,$LOG.witness,--object-bits,$OBJ_BITS,$PROPERTY ;\
   fi
 
   if grep -q "s FINAL EC=" $LOG.ok; then EC=$(grep -o "s FINAL EC=[0-9]*" $LOG.ok | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]'); else EC=5; fi ; \

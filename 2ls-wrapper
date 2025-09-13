@@ -26,8 +26,8 @@ run()
   # add property-specific options
   if [[ "$PROP" == "termination" ]]; then
     if [[ "$DUMP_CNF" != "" ]]; then
-      PROPERTY1="$PROPERTY --termination --competition-mode --dump-cnf ${DUMP_CNF}_term"
-      PROPERTY2="$PROPERTY --nontermination --competition-mode --dump-cnf ${DUMP_CNF}_nonterm"
+      PROPERTY1="$PROPERTY --termination --competition-mode --dump-cnf ./cnf/${DUMP_CNF}_term"
+      PROPERTY2="$PROPERTY --nontermination --competition-mode --dump-cnf ./cnf/${DUMP_CNF}_nonterm"
     else
       PROPERTY1="$PROPERTY --termination --competition-mode"
       PROPERTY2="$PROPERTY --nontermination --competition-mode"
@@ -76,7 +76,7 @@ run()
     fi
   else
     if [[ "$DUMP_CNF" != "" ]]; then
-      PROPERTY="$PROPERTY --heap --arrays --values-refine --k-induction --competition-mode --dump-cnf $DUMP_CNF"
+      PROPERTY="$PROPERTY --heap --arrays --values-refine --k-induction --competition-mode --dump-cnf ./cnf/${DUMP_CNF}"
     else
       PROPERTY="$PROPERTY --heap --arrays --values-refine --k-induction --competition-mode"
     fi

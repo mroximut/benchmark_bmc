@@ -27,7 +27,7 @@ class Solver:
         self.result = None
         self.postfix = postfix
 
-    def run(self, task: SingleBenchmarkTask, timeout: float = config['TIMEOUT'], log: bool = True, check_csv: bool = False, dry: bool = False) -> SingleBenchmarkResult:
+    def run(self, task: SingleBenchmarkTask, timeout: float = config['TIMEOUT'], log: bool = True, check_csv: bool = False, dry: bool = False, dump_cnf: bool = False) -> SingleBenchmarkResult:
         if not dry:
             self.cleanup()
         
@@ -55,6 +55,10 @@ class Solver:
             '--propertyfile', self.sv_benchmarks_dir + task.property_file,
             '--' + str(task.data_model)
         ]
+        if dump_cnf:    
+            subprocess_command.append('--dump-cnf')
+            subprocess_command.append(task.input_file.replace('/', '_') + '.cnf')
+
         print(f"Running command: {' '.join(subprocess_command)}")
         if dry:
             print("Dry run mode: not executing the command.")
@@ -210,8 +214,8 @@ class BenchmarkRunner:
         os.makedirs(self.save_directory, exist_ok=True)
         self.seed = None
         self.category = []
-    
-    def run(self, timeout: int, log: bool, dry_run: bool = False):
+
+    def run(self, timeout: int, log: bool, dry_run: bool = False, dump_cnf: bool = False):
         with open(os.path.join(self.save_directory, "info.txt"), 'a') as f:
             f.write(f"Seed: {self.seed}\n")
             f.write(f"Timeout: {timeout} seconds\n")
@@ -225,7 +229,7 @@ class BenchmarkRunner:
         for task in self.tasks:
             for solver in self.solvers:
                 print(f"Running {solver.type.value} on task {task.task_name}...")
-                result = solver.run(task, timeout=timeout, log=log)
+                result = solver.run(task, timeout=timeout, log=log, dump_cnf=dump_cnf)
                 print(f"Result for {task.task_name} with {solver.type.value}: {result.exit_code}, in {result.processing_time}s from which {result.sat_time}s SAT.")
                 solver.save_to_csv()
 
@@ -323,18 +327,60 @@ if __name__ == "__main__":
     # solver = Solver(SolverType.TWOLS, sv_benchmarks_dir="./")
     # solver.run(task, timeout=60, log=True)
     # solver.save_to_csv()
-    task = str_to_task("MemSafety-Juliet,c/Juliet_Test/CWE401_Memory_Leak---s03---CWE401_Memory_Leak__struct_twoIntsStruct_malloc_34_good.i,64,c/properties/valid-memsafety.prp,True")
-    task2 = str_to_task("ReachSafety-Combinations,c/combinations/square_5+soft_float_1-2a.c.cil.c,32,c/properties/unreach-call.prp,True")
-    task3 = str_to_task("ReachSafety-Recursive,c/recursive-simple/fibo_25-1.c,32,c/properties/unreach-call.prp,False")
-    task4 = str_to_task("NoOverflows-Main,c/nla-digbench-scaling/lcm1_valuebound20.c,32,c/properties/no-overflow.prp,True")
-    task5 = str_to_task("ReachSafety-ECA,c/eca-rers2012/Problem14_label28.c,32,c/properties/unreach-call.prp,False")
-    print(Solver(SolverType.MALLOB_PARALLEL_CBMC).run(task4, timeout=60, log=True, dry=True))
+    #task = str_to_task("MemSafety-Juliet,c/Juliet_Test/CWE401_Memory_Leak---s03---CWE401_Memory_Leak__struct_twoIntsStruct_malloc_34_good.i,64,c/properties/valid-memsafety.prp,True")
+    #task2 = str_to_task("ReachSafety-Combinations,c/combinations/square_5+soft_float_1-2a.c.cil.c,32,c/properties/unreach-call.prp,True")
+    #task3 = str_to_task("ReachSafety-Recursive,c/recursive-simple/fibo_25-1.c,32,c/properties/unreach-call.prp,False")
+    #task4 = str_to_task("NoOverflows-Main,c/nla-digbench-scaling/lcm1_valuebound20.c,32,c/properties/no-overflow.prp,True")
+    #task5 = str_to_task("ReachSafety-ECA,c/eca-rers2012/Problem14_label28.c,32,c/properties/unreach-call.prp,False")
+    #print(Solver(SolverType.MALLOB_PARALLEL_CBMC).run(task4, timeout=60, log=True, dry=True))
     
-    #runner = BenchmarkRunner([], [SolverType.MALLOB_PARALLEL_CBMC], save_directory='./test_all200/')
+    # tool = "2ls"
+    # all_selected_tasks = []
+    # random.seed(42)
+    # for threshold in [10, 100, 500]:
+    #     csv_file = f"./tasks/{tool}_truefalse_benchmark_tasks_over{threshold}.csv"
+    #     df = pd.read_csv(csv_file)
+    #     num_to_select = min(25, len(df))
+    #     selected_rows = df.sample(n=num_to_select)
+    #     all_selected_tasks.append(selected_rows)
+
+    # combined_df = pd.concat(all_selected_tasks, ignore_index=True)
+
+    # output_csv = f"./tasks/{tool}_combined_tasks.csv"
+    # combined_df.to_csv(output_csv, index=False)
+
+    # print(f"Selected and combined {len(combined_df)} tasks, saved to {output_csv}")
+
+    #runner = BenchmarkRunner([], [SolverType.TWOLS, SolverType.MALLOB_2LS], save_directory=f'./test_2ls_252525/')
     #runner.load_tasks_from_csv()
     #runner.run(timeout=900, log=True, dry_run=False)
 
 
+
+
+
+
+    # random.seed(42)
+    # csv_file = f"./tasks/2ls_truefalse_benchmark_tasks_over60.csv"
+    # df = pd.read_csv(csv_file)
+    # selected_rows = df.sample(n=300)
+    # combined_df = pd.concat([selected_rows], ignore_index=True)
+    # combined_df.to_csv(f"./test_over60_2ls/tasks.csv", index=False)
+
+    runner = BenchmarkRunner([], [SolverType.TWOLS], save_directory=f'./test_over60_2ls/')
+    runner.load_tasks_from_csv()
+    runner.run(timeout=900, log=True, dry_run=False, dump_cnf=True)
+
+
+
+
+
+
+
+
+    #runner = BenchmarkRunner([], [SolverType.MALLOB_CBMC, SolverType.MALLOB_PARALLEL_CBMC], save_directory='./test_all200/')
+    #runner.load_tasks_from_csv()
+    #runner.run(timeout=900, log=True, dry_run=False)
 
     #df_exclude = pd.read_csv('./test_termination_reachsafety_others505050/tasks.csv')
     #exclude = df_exclude['input_file'].tolist()

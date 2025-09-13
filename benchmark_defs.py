@@ -166,52 +166,79 @@ def parse_results_txt(txt_path: str) -> pd.DataFrame:
     return df
 
 if __name__ == "__main__":
-    save_dir = './tasks/'
-    tool = '2ls'
-    if tool == 'cbmc':
-        results = parse_results_txt('./cbmc.2023-12-17_05-51-17.results.txt')
-    elif tool == '2ls':
-        results = parse_results_txt('./2ls.2023-11-30_09-35-29.results.txt')
+    df_truefalse = pd.read_csv('./tasks/2ls_truefalse_results.csv')
+    df_truefalse_over_60 = df_truefalse[df_truefalse['wall_time'] > 60]
+    df_truefalse_over_60.to_csv('./tasks/2ls_truefalse_over_60.csv', index=False)
 
-    results.to_csv(save_dir + tool + '_official_results.csv', index=False)
-    col = "status"
-    mask = results[col].str.lower().str.startswith(("true","false"), na=False)
-    df_filtered = results[mask]
-    
-    df_filtered = df_filtered.sort_values(by='cpu_time')
-    df_filtered.to_csv(save_dir + tool + '_truefalse_results.csv', index=False)
-
-    df_truefalse_over_10 = df_filtered[(df_filtered['cpu_time'] >= 10.0) & (df_filtered['cpu_time'] < 100.0)]
-    df_truefalse_over_10.to_csv(save_dir + tool + '_truefalse_over_10.csv', index=False)
-
-    df_truefalse_over_100 = df_filtered[(df_filtered['cpu_time'] >= 100.0) & (df_filtered['cpu_time'] < 500.0)]
-    df_truefalse_over_100.to_csv(save_dir + tool + '_truefalse_over_100.csv', index=False)
-
-    df_truefalse_over_500 = df_filtered[df_filtered['cpu_time'] >= 500.0]
-    df_truefalse_over_500.to_csv(save_dir + tool + '_truefalse_over_500.csv', index=False)
-
+    singlebenchtasks = []
     base = config['BASE_DIR'] + "/benchmark/sv-benchmarks/c/"
-    for i, df in enumerate([df_truefalse_over_10, df_truefalse_over_100, df_truefalse_over_500]):
-        singlebenchtasks = []
-        for row in df.itertuples(index=False):
-            try:
-                benchtask = parse_yml_file(base + row.inputfile)
-            except Exception as e:
-                print(f"Error parsing YAML file for row {row}: {e}")
-                continue
-            for prop_file, expected in benchtask.property_files.items():
-                singlebenchtask = SingleBenchmarkTask(
-                    task_name=tool.upper(),
-                    input_file=benchtask.input_file,
-                    data_model=benchtask.data_model,
-                    property_file=prop_file,
-                    expected=expected
-                )
-                singlebenchtasks.append(singlebenchtask)
-    
+
+    for row in df_truefalse_over_60.itertuples(index=False):
+        try:
+            benchtask = parse_yml_file(base + row.inputfile)
+        except Exception as e:
+            print(f"Error parsing YAML file for row {row}: {e}")
+            continue
+        for prop_file, expected in benchtask.property_files.items():
+            singlebenchtask = SingleBenchmarkTask(
+                task_name="2LS",
+                input_file=benchtask.input_file,
+                data_model=benchtask.data_model,
+                property_file=prop_file,
+                expected=expected
+            )
+            singlebenchtasks.append(singlebenchtask)
+            
         df_tasks = pd.DataFrame([task.__dict__ for task in singlebenchtasks])
-        threshold = [10, 100, 500][i]
-        df_tasks.to_csv(f'{save_dir}{tool}_truefalse_benchmark_tasks_over{threshold}.csv', index=False)
+        df_tasks.to_csv(f'./tasks/2ls_truefalse_benchmark_tasks_over60.csv', index=False)
+
+# if __name__ == "__main__":
+#     save_dir = './tasks/'
+#     tool = '2ls'
+#     if tool == 'cbmc':
+#         results = parse_results_txt('./cbmc.2023-12-17_05-51-17.results.txt')
+#     elif tool == '2ls':
+#         results = parse_results_txt('./2ls.2023-11-30_09-35-29.results.txt')
+
+#     results.to_csv(save_dir + tool + '_official_results.csv', index=False)
+#     col = "status"
+#     mask = results[col].str.lower().str.startswith(("true","false"), na=False)
+#     df_filtered = results[mask]
+    
+#     df_filtered = df_filtered.sort_values(by='cpu_time')
+#     df_filtered.to_csv(save_dir + tool + '_truefalse_results.csv', index=False)
+
+#     df_truefalse_over_10 = df_filtered[(df_filtered['cpu_time'] >= 10.0) & (df_filtered['cpu_time'] < 100.0)]
+#     df_truefalse_over_10.to_csv(save_dir + tool + '_truefalse_over_10.csv', index=False)
+
+#     df_truefalse_over_100 = df_filtered[(df_filtered['cpu_time'] >= 100.0) & (df_filtered['cpu_time'] < 500.0)]
+#     df_truefalse_over_100.to_csv(save_dir + tool + '_truefalse_over_100.csv', index=False)
+
+#     df_truefalse_over_500 = df_filtered[df_filtered['cpu_time'] >= 500.0]
+#     df_truefalse_over_500.to_csv(save_dir + tool + '_truefalse_over_500.csv', index=False)
+
+#     base = config['BASE_DIR'] + "/benchmark/sv-benchmarks/c/"
+#     for i, df in enumerate([df_truefalse_over_10, df_truefalse_over_100, df_truefalse_over_500]):
+#         singlebenchtasks = []
+#         for row in df.itertuples(index=False):
+#             try:
+#                 benchtask = parse_yml_file(base + row.inputfile)
+#             except Exception as e:
+#                 print(f"Error parsing YAML file for row {row}: {e}")
+#                 continue
+#             for prop_file, expected in benchtask.property_files.items():
+#                 singlebenchtask = SingleBenchmarkTask(
+#                     task_name=tool.upper(),
+#                     input_file=benchtask.input_file,
+#                     data_model=benchtask.data_model,
+#                     property_file=prop_file,
+#                     expected=expected
+#                 )
+#                 singlebenchtasks.append(singlebenchtask)
+    
+#         df_tasks = pd.DataFrame([task.__dict__ for task in singlebenchtasks])
+#         threshold = [10, 100, 500][i]
+#         df_tasks.to_csv(f'{save_dir}{tool}_truefalse_benchmark_tasks_over{threshold}.csv', index=False)
 
 
 
