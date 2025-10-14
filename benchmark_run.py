@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 import time
 from benchmark_defs import *
@@ -13,8 +14,8 @@ class SolverType(Enum):
     MALLOB_CBMC = "mallob-cbmc"
     MALLOB_PARALLEL_CBMC = "mallob-parallel-cbmc"
     MALLOB_2LS = "mallob-2ls"
-    MALLOB_CBMC_FILESYSTEM = "mallob-cbmc-filesystem"
-    MALLOB_2LS_FILESYSTEM = "mallob-2ls-filesystem"
+    MALLOB_CBMC_FILESYSTEM = "mallob-filesys-cbmc"
+    #MALLOB_2LS_FILESYSTEM = "mallob-2ls-filesystem"
 
 
 class Solver:
@@ -134,7 +135,7 @@ class Solver:
         #elif self.type == SolverType.TWOLS:
         #    commands.append("pkill -f 2ls")
         #elif self.type in  [SolverType.MALLOB_CBMC, SolverType.MALLOB_2LS, SolverType.MALLOB_PARALLEL_CBMC]:
-        commands.extend(["pkill -f cbmc","pkill -f 2ls","pkill -f mallob", "pkill -f MainThread", "pkill -f mpirun", "pkill -f mallob_sat_process"])
+        commands.extend(["pkill -f cbmc","pkill -f 2ls","pkill -f mallob", "pkill -f MainThread", "pkill -f mpirun", "pkill -f mallob_sat_process", "tmux kill-session -t mallob_filesystem"])
         time.sleep(1)
         for command in commands:
             try:
@@ -144,7 +145,7 @@ class Solver:
         time.sleep(1)
 
     def save_log(self, stdout:str, save_dir: str):
-        log_file = os.path.join(save_dir, "logs", f"{self.type.value + self.postfix}_logs", f"{self.result.task.task_name}_{self.result.task.input_file.replace('/', '_')}.log")
+        log_file = os.path.join(save_dir, "logs", f"{self.type.value + self.postfix}_logs", f"{self.result.task.task_name}_{self.result.task.input_file.replace('/', '_')}_{self.result.task.property_file.split('/')[-1].replace('.prp', '')}.log")
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
         with open(log_file, 'w') as f:
             f.write(stdout)
@@ -315,82 +316,8 @@ def str_to_task(task_str: str) -> SingleBenchmarkTask:
     )
 
 if __name__ == "__main__":
-    # task = SingleBenchmarkTask(
-    #     task_name="test",
-    #     input_file="test_programs/elevator_spec14_product03.cil.c",
-    #     #input_file="test_programs/dijkstra-u_unwindbound50.c",
-    #     data_model=32,
-    #     #property_file="test_programs/valid-memsafety.prp",
-    #     property_file="test_programs/termination.prp",
-    #     expected=True
-    # )
-    # solver = Solver(SolverType.TWOLS, sv_benchmarks_dir="./")
-    # solver.run(task, timeout=60, log=True)
-    # solver.save_to_csv()
-    #task = str_to_task("MemSafety-Juliet,c/Juliet_Test/CWE401_Memory_Leak---s03---CWE401_Memory_Leak__struct_twoIntsStruct_malloc_34_good.i,64,c/properties/valid-memsafety.prp,True")
-    #task2 = str_to_task("ReachSafety-Combinations,c/combinations/square_5+soft_float_1-2a.c.cil.c,32,c/properties/unreach-call.prp,True")
-    #task3 = str_to_task("ReachSafety-Recursive,c/recursive-simple/fibo_25-1.c,32,c/properties/unreach-call.prp,False")
-    #task4 = str_to_task("NoOverflows-Main,c/nla-digbench-scaling/lcm1_valuebound20.c,32,c/properties/no-overflow.prp,True")
-    #task5 = str_to_task("ReachSafety-ECA,c/eca-rers2012/Problem14_label28.c,32,c/properties/unreach-call.prp,False")
-    #print(Solver(SolverType.MALLOB_PARALLEL_CBMC).run(task4, timeout=60, log=True, dry=True))
-    
-    # tool = "2ls"
-    # all_selected_tasks = []
-    # random.seed(42)
-    # for threshold in [10, 100, 500]:
-    #     csv_file = f"./tasks/{tool}_truefalse_benchmark_tasks_over{threshold}.csv"
-    #     df = pd.read_csv(csv_file)
-    #     num_to_select = min(25, len(df))
-    #     selected_rows = df.sample(n=num_to_select)
-    #     all_selected_tasks.append(selected_rows)
-
-    # combined_df = pd.concat(all_selected_tasks, ignore_index=True)
-
-    # output_csv = f"./tasks/{tool}_combined_tasks.csv"
-    # combined_df.to_csv(output_csv, index=False)
-
-    # print(f"Selected and combined {len(combined_df)} tasks, saved to {output_csv}")
-
-    #runner = BenchmarkRunner([], [SolverType.TWOLS, SolverType.MALLOB_2LS], save_directory=f'./test_2ls_252525/')
-    #runner.load_tasks_from_csv()
-    #runner.run(timeout=900, log=True, dry_run=False)
-
-
-
-
-
-
-    # random.seed(42)
-    # csv_file = f"./tasks/2ls_truefalse_benchmark_tasks_over60.csv"
-    # df = pd.read_csv(csv_file)
-    # selected_rows = df.sample(n=300)
-    # combined_df = pd.concat([selected_rows], ignore_index=True)
-    # combined_df.to_csv(f"./test_over60_2ls/tasks.csv", index=False)
-
-    runner = BenchmarkRunner([], [SolverType.TWOLS], save_directory=f'./test_over60_2ls/')
+    # runner = BenchmarkRunner([], [SolverType.TWOLS, SolverType.MALLOB_2LS], save_directory=f'./test_2ls_over_500/')
+    # runner = BenchmarkRunner([], [SolverType.CBMC, SolverType.MALLOB_CBMC, SolverType.MALLOB_PARALLEL_CBMC], save_directory=f'./test_cbmc_over_500/')
+    runner = BenchmarkRunner([], [SolverType.MALLOB_CBMC_FILESYSTEM], save_directory=f'./test_cbmc_over_500/')
     runner.load_tasks_from_csv()
-    runner.run(timeout=900, log=True, dry_run=False, dump_cnf=True)
-
-
-
-
-
-
-
-
-    #runner = BenchmarkRunner([], [SolverType.MALLOB_CBMC, SolverType.MALLOB_PARALLEL_CBMC], save_directory='./test_all200/')
-    #runner.load_tasks_from_csv()
-    #runner.run(timeout=900, log=True, dry_run=False)
-
-    #df_exclude = pd.read_csv('./test_termination_reachsafety_others505050/tasks.csv')
-    #exclude = df_exclude['input_file'].tolist()
-    
-    #runner.set_tasks_randomly(no_tasks=50, all_tasks_csv='benchmark_tasks.csv', seed=42424242, category=['MemSafety'])
-    #runner.set_tasks_randomly(no_tasks=50, all_tasks_csv='benchmark_tasks.csv', seed=42424242, category=['NoOverflows'])
-    #runner.set_tasks_randomly(no_tasks=50, all_tasks_csv='benchmark_tasks.csv', seed=42424242, category=['SoftwareSystems'])
-
-    #runner.set_tasks_randomly(no_tasks=200, all_tasks_csv='benchmark_tasks.csv', seed=123456)
-    
-    #runner.save_tasks_to_csv()
-    
-    #runner.run(timeout=900, log=True, dry_run=False)
+    runner.run(timeout=900, log=True, dry_run=False)
