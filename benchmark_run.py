@@ -16,6 +16,7 @@ class SolverType(Enum):
     MALLOB_2LS = "mallob-2ls"
     MALLOB_CBMC_FILESYSTEM = "mallob-filesys-cbmc"
     #MALLOB_2LS_FILESYSTEM = "mallob-2ls-filesystem"
+    MALLOB_2LS_1THREAD = "mallob-2ls-1thread"
 
 
 class Solver:
@@ -316,8 +317,8 @@ def str_to_task(task_str: str) -> SingleBenchmarkTask:
     )
 
 if __name__ == "__main__":
-    # runner = BenchmarkRunner([], [SolverType.TWOLS, SolverType.MALLOB_2LS], save_directory=f'./test_2ls_over_500/')
-    # runner = BenchmarkRunner([], [SolverType.CBMC, SolverType.MALLOB_CBMC, SolverType.MALLOB_PARALLEL_CBMC], save_directory=f'./test_cbmc_over_500/')
-    runner = BenchmarkRunner([], [SolverType.MALLOB_CBMC_FILESYSTEM], save_directory=f'./test_cbmc_over_500/')
+    # runner = BenchmarkRunner([], [SolverType.MALLOB_2LS_1THREAD, SolverType.MALLOB_2LS], save_directory=f'./test_2ls_over_500/')
+    runner = BenchmarkRunner([], [SolverType.MALLOB_CBMC, SolverType.MALLOB_PARALLEL_CBMC], save_directory=f'./test_cbmc_over_500/')
+    # runner = BenchmarkRunner([], [SolverType.MALLOB_CBMC_FILESYSTEM], save_directory=f'./test_cbmc_over_500/')
     runner.load_tasks_from_csv()
     runner.run(timeout=900, log=True, dry_run=False)

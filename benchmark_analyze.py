@@ -1,8 +1,9 @@
 from benchmark_run import *
 import numpy as np
+from itertools import cycle
 
 def invalid(exit_code):
-    return exit_code != 10 and exit_code != 0
+    return exit_code != 10 and exit_code != 0 and exit_code != 42
 
 def compare_csv_files(file1, file2):
     df1 = pd.read_csv(file1)
@@ -17,15 +18,31 @@ def compare_csv_files(file1, file2):
             print(f"\nDifference in row {idx} ({df1.loc[idx, 'input_file']}):")
             print(f"  exit_code: {val1} vs {val2}")
 
-def plot_instances_solved_across_runtime(files: List[str], filename: str = 'instances_solved_vs_runtime.png'):
+def plot_instances_solved_across_runtime(files: List[str], filename: str = 'instances_solved_vs_runtime.png', first_n = None):
     plt.close('all')
+
+    # color-blind friendly palette (manual, no seaborn)
+    palette = [
+        "#0072B2",  # blue
+        "#D55E00",  # vermilion
+        "#009E73",  # green
+        "#CC79A7",  # magenta
+        "#F0E442",  # yellow
+        "#56B4E9",  # sky blue
+        "#E69F00",  # orange
+        "#000000",  # black
+    ]
+    colors = cycle(palette)
+
     for file in files:
         df = pd.read_csv(file)
         # Use 'total_runtime' as x, filter only solved instances (exit_code == 0 or 10)
-        solved = df[df['exit_code'].isin([0, 10])].copy()
+        if first_n is not None:
+            df = df.head(first_n)
+        solved = df[df['exit_code'].isin([0, 10, 42])].copy()
         solved_times = np.sort(solved['processing_time'].astype(float).values)
         y = np.arange(1, len(solved_times) + 1)
-        plt.step(solved_times, y, where='post', label=file.split('/')[-1])
+        plt.step(solved_times, y, where='post', label=file.split('/')[-1].split('_results.csv')[0], color=next(colors))
 
     plt.xlabel('Time (s)')
     plt.ylabel('Instances solved')
@@ -33,9 +50,10 @@ def plot_instances_solved_across_runtime(files: List[str], filename: str = 'inst
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
     plt.xscale('log')
-    plt.savefig(os.path.join(os.path.dirname(files[0]), filename))
+    #plt.grid(which='both', linestyle='--', linewidth=0.5, alpha=0.7)
+    plt.savefig(os.path.join(os.path.dirname(files[0]), filename), dpi=300, bbox_inches='tight')
+    plt.show()
 
 def speedup_values(file1, file2, threshold=0):
     with open(file2.replace('.csv', '_speedups.txt'), 'a') as f:
@@ -75,16 +93,25 @@ if __name__ == "__main__":
     # geometric_mean = np.exp(np.mean(np.log(speedups)))
     # print(f"Geometric mean of speedups: {geometric_mean:.2f}")
 
-    base = "./test_all200/"
-    compare_csv_files( base +"results/mallob-cbmc_results.csv",
-                        base + "results/mallob-parallel-cbmc_results.csv")
-    plot_instances_solved_across_runtime([base + "results/cbmc_results.csv",
-                        base + "results/mallob-cbmc_results.csv",
-                        base + "results/mallob-parallel-cbmc_results.csv"], "instances_solved_vs_runtime_cbmc.png")
-    speedups = speedup_values(base + "results/mallob-cbmc_results.csv",
-                               base + "results/mallob-parallel-cbmc_results.csv")
+    # base = "./test_all200/"
+    # compare_csv_files( base +"results/mallob-cbmc_results.csv",
+    #                     base + "results/mallob-parallel-cbmc_results.csv")
+    # plot_instances_solved_across_runtime([base + "results/cbmc_results.csv",
+    #                     base + "results/mallob-cbmc_results.csv",
+    #                     base + "results/mallob-parallel-cbmc_results.csv"], "instances_solved_vs_runtime_cbmc.png")
+    # speedups = speedup_values(base + "results/mallob-cbmc_results.csv",
+    #                            base + "results/mallob-parallel-cbmc_results.csv")
     
-    print(f"Speedups: {sorted(speedups)}")
-    geometric_mean = np.exp(np.mean(np.log(speedups)))
-    print(f"Geometric mean of speedups: {geometric_mean:.2f}")
-   
+    # print(f"Speedups: {sorted(speedups)}")
+    # geometric_mean = np.exp(np.mean(np.log(speedups)))
+    # print(f"Geometric mean of speedups: {geometric_mean:.2f}")
+
+
+    base_2ls = "./test_2ls_over_500/"
+    base_cbmc = "./test_cbmc_over_500/"
+
+    #files_2ls = [base_2ls + "results/" + file for file in os.listdir(base_2ls + "results/") if file.endswith(".csv")]
+    files_cbmc = [base_cbmc + "results/" + file for file in os.listdir(base_cbmc + "results/") if file.endswith(".csv")]
+    #plot_instances_solved_across_runtime(files_2ls, "instances_solved_vs_runtime_2ls_over500.png")
+    plot_instances_solved_across_runtime(files_cbmc, "instances_solved_vs_runtime_cbmc_over500.png", first_n=110)
+
