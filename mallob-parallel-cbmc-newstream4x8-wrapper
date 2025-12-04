@@ -1,6 +1,6 @@
 #!/bin/bash
 # tool
-MALLOB=../mallob_bmc/mallob
+MALLOB=../mallob_bmc/mallob_newstream/mallob
 BACK=../../benchmark_bmc
 TOOL_BINARY=./build_cbmc/mallob
 GOTO_CC=$MALLOB/lib/cbmc/src/goto-cc/goto-cc
@@ -40,7 +40,7 @@ run()
 
 cd $MALLOB
 EC=42 ; \
-$TOOL_BINARY -t=16 -mono-app=cbmc -mono=$LOG.bin -v=4 -compress-models -unwind-loops -cbmc-log=$LOG.ok -cbmc-opts=--no-standard-checks,--slice-formula,--stop-on-fail,--object-bits,$OBJ_BITS,$PROPERTY ; \
+RDMAV_FORK_SAFE=1; mpirun -np 4 --bind-to core -map-by ppr:8:node:pe=4 $TOOL_BINARY -t=8 -c=-1 -v=4 -parallel-unwind=4 -mono-app=cbmc -mono=$LOG.bin -compress-models -unwind-loops -cbmc-log=$LOG.ok -cbmc-opts=--no-standard-checks,--slice-formula,--stop-on-fail,--object-bits,$OBJ_BITS,$PROPERTY ; \
 
 if grep -q "s FINAL EC=" $LOG.ok; then EC=$(grep -o "s FINAL EC=[0-9]*" $LOG.ok | tail -n1 | cut -d'=' -f2 | tr -d '[:space:]'); else EC=5; fi ; \
 echo $EC
@@ -222,7 +222,7 @@ export GMON_OUT_PREFIX=`basename ${BM[0]}`.gmon.out
 export BM_DIR=`mktemp -d -t ${TOOL_NAME}-benchmark.XXXXXX`
 
 export LOG=$(mktemp -t ${TOOL_NAME}-log.XXXXXX)
-trap "rm -rf $LOG $LOG.latest $LOG.ok $LOG.witness $LOG.bin $BM_DIR" EXIT
+trap "rm -rf $LOG $LOG.latest $LOG.ok_* $LOG.witness $LOG.bin $BM_DIR" EXIT
 
 
 run

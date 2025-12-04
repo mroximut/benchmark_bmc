@@ -1,0 +1,6 @@
+Server: blum
+0.5s trivialitySeed: None
+Timeout: 900 seconds
+Tasks: 154
+Solvers: ['mallob-2ls-oldstream1', 'mallob-2ls-oldstream8', 'mallob-2ls-newstream1', 'mallob-2ls-newstream8']
+Categories: []

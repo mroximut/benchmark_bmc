@@ -1,0 +1,26 @@
+Server: blum
+Seed: None
+Timeout: 900 seconds
+Tasks: 150
+Solvers: ['mallob-cbmc-newstream4', 'mallob-cbmc-newstream8', 'mallob-cbmc-newstream32', 'mallob-parallel-cbmc-newstream2x4', 'mallob-parallel-cbmc-newstream4x8', 'mallob-filesys8-cbmc']
+Categories: []
+Seed: None
+Timeout: 900 seconds
+Tasks: 150
+Solvers: ['mallob-cbmc-newstream4', 'mallob-cbmc-newstream8', 'mallob-cbmc-newstream32', 'mallob-parallel-cbmc-newstream2x4', 'mallob-parallel-cbmc-newstream4x8', 'mallob-filesys8-cbmc', 'cbmc']
+Categories: []
+Seed: None
+Timeout: 900 seconds
+Tasks: 150
+Solvers: ['mallob-cbmc-newstream4', 'mallob-cbmc-newstream8', 'mallob-cbmc-newstream16', 'mallob-cbmc-newstream32', 'mallob-filesys8-cbmc', 'cbmc']
+Categories: []
+Seed: None
+Timeout: 900 seconds
+Tasks: 150
+Solvers: ['mallob-cbmc-newstream4', 'mallob-cbmc-newstream8', 'mallob-cbmc-newstream16', 'mallob-cbmc-newstream32', 'mallob-filesys8-cbmc', 'cbmc']
+Categories: []
+Seed: None
+Timeout: 900 seconds
+Tasks: 150
+Solvers: ['mallob-parallel-cbmc-newstream2x4', 'mallob-parallel-cbmc-newstream4x8', 'mallob-filesys32-cbmc']
+Categories: []
