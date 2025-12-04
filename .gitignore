@@ -1,7 +1,6 @@
 .venv/
 test_programs/
 logs/
-results/
 test/
 __pycache__/
 .history/
