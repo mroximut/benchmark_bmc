@@ -24,3 +24,8 @@ Timeout: 900 seconds
 Tasks: 150
 Solvers: ['mallob-parallel-cbmc-newstream2x4', 'mallob-parallel-cbmc-newstream4x8', 'mallob-filesys32-cbmc']
 Categories: []
+Seed: None
+Timeout: 900 seconds
+Tasks: 150
+Solvers: ['mallob-cbmc-oldstream32', 'cbmc-kissat', 'mallob-cbmc-newstream32-kissat', 'mallob-parallel-cbmc-newstream2x16', 'mallob-parallel-cbmc-newstream4x8-kissat', 'mallob-parallel-cbmc-newstream2x16-kissat']
+Categories: []

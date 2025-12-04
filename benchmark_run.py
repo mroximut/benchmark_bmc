@@ -6,7 +6,6 @@ from enum import Enum
 import random 
 import sys
 import os
-import matplotlib.pyplot as plt
 
 class SolverType(Enum):
     CBMC = "cbmc"
@@ -17,6 +16,29 @@ class SolverType(Enum):
     MALLOB_CBMC_FILESYSTEM = "mallob-filesys-cbmc"
     #MALLOB_2LS_FILESYSTEM = "mallob-2ls-filesystem"
     MALLOB_2LS_1THREAD = "mallob-2ls-1thread"
+
+    MALLOB_CBMC_4 = "mallob-cbmc-newstream4"
+    MALLOB_CBMC_8 = "mallob-cbmc-newstream8"
+    MALLOB_CBMC_16 = "mallob-cbmc-newstream16"
+    MALLOB_CBMC_32 = "mallob-cbmc-newstream32"
+    MALLOB_CBMC_FILESYSTEM_8 = "mallob-filesys8-cbmc"
+
+    MALLOB_PARALLEL_CBMC_2x4 = "mallob-parallel-cbmc-newstream2x4"
+    MALLOB_PARALLEL_CBMC_4x8 = "mallob-parallel-cbmc-newstream4x8"
+    MALLOB_CBMC_FILESYSTEM_32 = "mallob-filesys32-cbmc"
+
+    MALLOB_CBMC_KISSAT_32 = "mallob-cbmc-newstream32-kissat"
+    MALLOB_PARALLEL_CBMC_2x16 = "mallob-parallel-cbmc-newstream2x16"
+    MALLOB_CBMC_OLD_32 = "mallob-cbmc-oldstream32"
+    MALLOB_PARALLEL_CBMC_4x8_KISSAT = "mallob-parallel-cbmc-newstream4x8-kissat"
+    MALLOB_PARALLEL_CBMC_2x16_KISSAT = "mallob-parallel-cbmc-newstream2x16-kissat"
+    CBMC_KISSAT = "cbmc-kissat"
+    CBMC_MINISAT = "cbmc-minisat"
+
+    MALLOB_2LS_OLD1 = "mallob-2ls-oldstream1"
+    MALLOB_2LS_OLD8 = "mallob-2ls-oldstream8"
+    MALLOB_2LS_NEW1 = "mallob-2ls-newstream1"
+    MALLOB_2LS_NEW8 = "mallob-2ls-newstream8"
 
 
 class Solver:
@@ -29,7 +51,7 @@ class Solver:
         self.result = None
         self.postfix = postfix
 
-    def run(self, task: SingleBenchmarkTask, timeout: float = config['TIMEOUT'], log: bool = True, check_csv: bool = False, dry: bool = False, dump_cnf: bool = False) -> SingleBenchmarkResult:
+    def run(self, task: SingleBenchmarkTask, timeout: float = config['TIMEOUT'], log: bool = True, check_csv: bool = True, dry: bool = False, dump_cnf: bool = False) -> SingleBenchmarkResult:
         if not dry:
             self.cleanup()
         
@@ -183,6 +205,10 @@ class Solver:
             df.to_csv(save_path, index=False)   
 
     def get_result_from_csv(self, csv_file: str, single_task: SingleBenchmarkTask) -> SingleBenchmarkResult:
+        if not os.path.exists(csv_file):
+            print(f"No CSV file found at {csv_file}.")
+            return None
+        
         df = pd.read_csv(csv_file)
         task_df = df[(df['task_name'] == single_task.task_name) & 
                      (df['input_file'] == single_task.input_file) & 
@@ -317,8 +343,22 @@ def str_to_task(task_str: str) -> SingleBenchmarkTask:
     )
 
 if __name__ == "__main__":
-    # runner = BenchmarkRunner([], [SolverType.MALLOB_2LS_1THREAD, SolverType.MALLOB_2LS], save_directory=f'./test_2ls_over_500/')
-    runner = BenchmarkRunner([], [SolverType.MALLOB_CBMC, SolverType.MALLOB_PARALLEL_CBMC], save_directory=f'./test_cbmc_over_500/')
-    # runner = BenchmarkRunner([], [SolverType.MALLOB_CBMC_FILESYSTEM], save_directory=f'./test_cbmc_over_500/')
-    runner.load_tasks_from_csv()
-    runner.run(timeout=900, log=True, dry_run=False)
+    #runner = BenchmarkRunner([], [SolverType.MALLOB_2LS], save_directory=f'./test_2ls_over_500/')
+    #runner.load_tasks_from_csv()
+    #runner.run(timeout=900, log=True, dry_run=False)
+    #runner2 = BenchmarkRunner([], [SolverType.MALLOB_CBMC_4, SolverType.MALLOB_CBMC_8, SolverType.MALLOB_CBMC_16, SolverType.MALLOB_CBMC_32, 
+    #                               SolverType.MALLOB_CBMC_FILESYSTEM_8, SolverType.CBMC], save_directory=f'./test_cbmc_over_500_newstream/')
+    #runner3 = BenchmarkRunner([], [SolverType.MALLOB_PARALLEL_CBMC_2x4, SolverType.MALLOB_PARALLEL_CBMC_4x8, \
+    #                               SolverType.MALLOB_CBMC_FILESYSTEM_32], save_directory=f'./test_cbmc_over_500_newstream/')
+    #runner4 = BenchmarkRunner([], [SolverType.MALLOB_2LS_OLD1, SolverType.MALLOB_2LS_OLD8, \
+    #                               SolverType.MALLOB_2LS_NEW1, SolverType.MALLOB_2LS_NEW8], save_directory=f'./test_2ls_over_500_newstream/')
+    runner5 = BenchmarkRunner([], [SolverType.MALLOB_CBMC_OLD_32, SolverType.CBMC_KISSAT, 
+                                   SolverType.MALLOB_CBMC_KISSAT_32, SolverType.MALLOB_PARALLEL_CBMC_2x16,
+                                   SolverType.MALLOB_PARALLEL_CBMC_4x8_KISSAT, SolverType.MALLOB_PARALLEL_CBMC_2x16_KISSAT], 
+                                   save_directory=f'./test_cbmc_over_500_newstream/')
+
+    #runner6 = BenchmarkRunner([], [SolverType.MALLOB_2LS_NEW32, SolverType.MALLOB_2LS_OLD32], save_directory=f'./test_2ls_over_500_newstream/')
+    runner5.load_tasks_from_csv()
+    runner5.run(timeout=900, log=True, dry_run=False)
+    #runner6.load_tasks_from_csv()
+    #runner6.run(timeout=900, log=True, dry_run=False)
