@@ -4,3 +4,8 @@ Timeout: 900 seconds
 Tasks: 154
 Solvers: ['mallob-2ls-oldstream1', 'mallob-2ls-oldstream8', 'mallob-2ls-newstream1', 'mallob-2ls-newstream8']
 Categories: []
+Seed: None
+Timeout: 900 seconds
+Tasks: 154
+Solvers: ['mallob-2ls-newstream32', 'mallob-2ls-oldstream32']
+Categories: []
